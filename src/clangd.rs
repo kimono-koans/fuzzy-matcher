@@ -504,8 +504,8 @@ mod tests {
 
 #[allow(dead_code)]
 fn print_dp(line: &str, pattern: &str, dp: &[Vec<Score>]) {
-    let num_line_chars = line.chars().count();
-    let num_pattern_chars = pattern.chars().count();
+    let num_line_chars = line.len();
+    let num_pattern_chars = pattern.len();
 
     print!("\t");
     for (idx, ch) in line.chars().enumerate() {
