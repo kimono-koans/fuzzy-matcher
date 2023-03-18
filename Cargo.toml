@@ -18,6 +18,7 @@ compact = []
 
 [dependencies]
 thread_local = "1.0.0"
+bitap = "0.2.0"
 
 [dev-dependencies]
 termion = "1.5.1"

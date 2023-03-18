@@ -1,3 +1,4 @@
+pub mod bitap;
 pub mod clangd;
 pub mod skim;
 mod util;
