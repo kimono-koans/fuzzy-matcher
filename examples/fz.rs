@@ -1,6 +1,7 @@
 use fuzzy_matcher::clangd::ClangdMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
+use fuzzy_matcher::util::wrap_matches;
 use std::env;
 use std::io::{self, BufRead};
 use std::process::exit;
@@ -46,20 +47,4 @@ pub fn main() {
             }
         }
     }
-}
-
-fn wrap_matches(line: &str, indices: &[IndexType]) -> String {
-    let mut ret = String::new();
-    let mut peekable = indices.iter().peekable();
-    for (idx, ch) in line.chars().enumerate() {
-        let next_id = **peekable.peek().unwrap_or(&&(line.len() as IndexType));
-        if next_id == (idx as IndexType) {
-            ret.push_str(format!("{}{}{}", Invert, ch, Reset).as_str());
-            peekable.next();
-        } else {
-            ret.push(ch);
-        }
-    }
-
-    ret
 }

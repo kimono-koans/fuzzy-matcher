@@ -11,7 +11,7 @@ pub fn cheap_matches(
         .zip(pattern.iter())
         .map_while(|((idx, c), p)| {
             if char_equal(*c, *p, case_sensitive) {
-                return Some(idx)
+                return Some(idx + 1usize)
             }
             
             None
@@ -122,18 +122,20 @@ pub fn filter_and_sort<'a>(
 }
 
 #[allow(dead_code)]
-pub fn wrap_matches(line: &str, indices: &[IndexType]) -> String {
-    let mut ret = String::new();
-    let mut peekable = indices.iter().peekable();
-    for (idx, ch) in line.chars().enumerate() {
-        let next_id = **peekable.peek().unwrap_or(&&(line.len() as IndexType));
-        if next_id == (idx as IndexType) {
-            ret.push_str(format!("[{}]", ch).as_str());
-            peekable.next();
-        } else {
-            ret.push(ch);
-        }
-    }
+pub fn wrap_matches(line: &str, indices: &[IndexType]) -> String {    
+    line
+        .chars()
+        .enumerate()
+        .zip(indices.iter())
+        .fold(String::new(),|mut ret, ((idx, ch), idx_type)| {
+            let next_id = idx_type;
+            
+            if *next_id as usize == idx {
+                ret.push_str(format!("[{}]", ch).as_str())
+            } else {
+                ret.push(ch)
+            }
 
-    ret
+            ret
+        })
 }

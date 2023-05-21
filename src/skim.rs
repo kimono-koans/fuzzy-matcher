@@ -943,10 +943,12 @@ impl SkimMatcherV2 {
     ) -> Option<(ScoreType, Vec<IndexType>)> {
         if pattern.len() <= 0 {
             return Some((0, Vec::new()));
-        } else if pattern.len() == 1 {
+        }
+        
+        if pattern.len() == 1 {
             let match_idx = first_match_indices[0];
             let prev_ch = if match_idx > 0 {
-                choice[match_idx - 1]
+                choice[match_idx]
             } else {
                 '\0'
             };
@@ -959,18 +961,22 @@ impl SkimMatcherV2 {
         let mut start_idx = first_match_indices[0];
         let end_idx = first_match_indices[first_match_indices.len() - 1];
 
-        let mut pattern_iter = pattern.iter().rev().peekable();
-        for (idx, &c) in choice[start_idx..=end_idx].iter().enumerate().rev() {
-            match pattern_iter.peek() {
-                Some(&&p) => {
-                    if char_equal(c, p, case_sensitive) {
-                        let _ = pattern_iter.next();
-                        start_idx = idx;
-                    }
+        choice[start_idx..=end_idx]
+            .iter()
+            .enumerate()
+            .rev()
+            .zip(pattern.iter().rev())
+            .map_while(|((idx, &c), p)| {
+                if char_equal(c, *p, case_sensitive) {
+                    return Some(idx + 1usize)
                 }
-                None => break,
-            }
-        }
+
+                None
+            })
+            .last()
+            .map(|res| {
+                start_idx = res;
+            });
 
         Some(self.calculate_score_with_pos(
             choice,
@@ -994,7 +1000,7 @@ impl SkimMatcherV2 {
         let mut pos = Vec::new();
 
         let choice_iter = choice[start_idx..=end_idx].iter().enumerate();
-        let mut pattern_iter = pattern.iter().enumerate().peekable();
+        let mut pattern_iter = pattern.iter().enumerate();
 
         // unfortunately we could not get the the character before the first character's(for performance)
         // so we tread them as NonWord
@@ -1005,7 +1011,7 @@ impl SkimMatcherV2 {
         let mut prev_match_bonus = 0;
 
         for (c_idx, &c) in choice_iter {
-            let op = pattern_iter.peek();
+            let op = pattern_iter.next();
             if op.is_none() {
                 break;
             }
@@ -1014,7 +1020,7 @@ impl SkimMatcherV2 {
             let ch_type = CharType::of(c);
             let in_place_bonus = self.in_place_bonus(prev_ch_type, ch_type);
 
-            let (_p_idx, &p) = *op.unwrap();
+            let (_p_idx, &p) = op.unwrap();
 
             if let Some(match_score) = self.calculate_match_score(c, p, case_sensitive) {
                 if with_pos {

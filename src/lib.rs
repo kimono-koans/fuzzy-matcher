@@ -1,6 +1,6 @@
 pub mod clangd;
 pub mod skim;
-mod util;
+pub mod util;
 
 #[cfg(not(feature = "compact"))]
 type IndexType = usize;
