@@ -968,7 +968,7 @@ impl SkimMatcherV2 {
             .zip(pattern.iter().rev())
             .map_while(|((idx, &c), p)| {
                 if char_equal(c, *p, case_sensitive) {
-                    return Some(idx + 1usize)
+                    return Some(idx)
                 }
 
                 None
