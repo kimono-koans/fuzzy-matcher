@@ -39,7 +39,7 @@ const PENALTY_MAX_LEADING: ScoreType = -18;
 const PENALTY_UNMATCHED: ScoreType = -2;
 
 #[deprecated(since = "0.3.5", note = "Please use SkimMatcherV2 instead")]
-#[derive(Default)]
+#[derive(Debug)]
 pub struct SkimMatcher {}
 
 /// The V1 matcher is based on ForrestTheWoods's post
@@ -269,7 +269,7 @@ fn fuzzy_score(
     score
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct SkimScoreConfig {
     pub score_match: i32,
     pub gap_start: i32,
@@ -339,7 +339,7 @@ enum Movement {
 /// Inner state of the score matrix
 // Implementation detail: tried to pad to 16B
 // will store the m and p matrix together
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct MatrixCell {
     pub m_move: Movement,
     pub m_score: i32,
@@ -594,6 +594,7 @@ enum CaseMatching {
 /// M[i][j] = -infinity if p[i] and c[j] do not match
 /// P[i][j] = max(gap_start + gap_extend + M[i][j-1], gap_extend + P[i][j-1])
 /// ```
+#[derive(Debug)]
 pub struct SkimMatcherV2 {
     debug: bool,
 
@@ -951,21 +952,8 @@ impl SkimMatcherV2 {
             return Some((in_place_bonus as ScoreType, vec![match_idx as IndexType]));
         }
 
-        let mut start_idx = first_match_indices[0];
+        let start_idx = first_match_indices[0];
         let end_idx = first_match_indices[first_match_indices.len() - 1];
-
-        let mut pattern_iter = pattern.iter().rev().peekable();
-        for (idx, &c) in choice[start_idx..=end_idx].iter().enumerate().rev() {
-            match pattern_iter.peek() {
-                Some(&&p) => {
-                    if char_equal(c, p, case_sensitive) {
-                        let _ = pattern_iter.next();
-                        start_idx = idx;
-                    }
-                }
-                None => break,
-            }
-        }
 
         Some(self.calculate_score_with_pos(
             choice,
