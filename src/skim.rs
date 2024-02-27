@@ -39,7 +39,7 @@ const PENALTY_MAX_LEADING: ScoreType = -18;
 const PENALTY_UNMATCHED: ScoreType = -2;
 
 #[deprecated(since = "0.3.5", note = "Please use SkimMatcherV2 instead")]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SkimMatcher {}
 
 /// The V1 matcher is based on ForrestTheWoods's post
