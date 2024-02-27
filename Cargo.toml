@@ -1,6 +1,6 @@
 [package]
 name = "fuzzy-muff"
-version = "0.3.10"
+version = "0.3.11"
 authors = ["Jinzhou Zhang <lotabout@gmail.com>"]
 description = "Fuzzy Matching Library"
 documentation = "https://docs.rs/fuzzy-matcher"
