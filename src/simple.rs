@@ -223,11 +223,11 @@ impl<'a> SimpleMatch<'a> {
 
     #[inline]
     pub fn char_equal(&self, a: char, b: char) -> bool {
-        if !self.case_sensitive && self.is_ascii {
-            return a.eq_ignore_ascii_case(&b);
-        }
-
         if !self.case_sensitive {
+            if self.is_ascii {
+                return a.eq_ignore_ascii_case(&b);
+            }
+
             return a.to_lowercase().cmp(b.to_lowercase()) == Ordering::Equal;
         }
 
