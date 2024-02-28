@@ -37,7 +37,6 @@ impl Default for SimpleMatcher {
 impl SimpleMatcher {
     fn fuzzy(&self, choice: &str, pattern: &str) -> Option<(ScoreType, Vec<IndexType>)> {
         let new_match = SimpleMatch::new(choice, pattern, self);
-
         new_match.fuzzy()
     }
 
@@ -224,11 +223,10 @@ impl<'a> SimpleMatch<'a> {
     #[inline]
     pub fn char_equal(&self, a: char, b: char) -> bool {
         if !self.case_sensitive {
-            if self.is_ascii {
-                return a.eq_ignore_ascii_case(&b);
+            if !self.is_ascii {
+                return a.to_lowercase().cmp(b.to_lowercase()) == Ordering::Equal;
             }
-
-            return a.to_lowercase().cmp(b.to_lowercase()) == Ordering::Equal;
+            return a.eq_ignore_ascii_case(&b);
         }
 
         a == b
