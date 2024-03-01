@@ -29,7 +29,7 @@ pub struct SimpleMatcher {
 impl Default for SimpleMatcher {
     fn default() -> Self {
         SimpleMatcher {
-            case: CaseMatching::Respect,
+            case: CaseMatching::Smart,
         }
     }
 }
@@ -107,7 +107,7 @@ impl<'a> SimpleMatch<'a> {
 
         self.reverse_matches(pattern_len, &mut start_idx, end_idx, &mut matches);
 
-        let score = Self::score(start_idx, end_idx, pattern_len, choice_len);
+        let score = self.score(start_idx, end_idx, pattern_len, choice_len);
 
         if score >= BASELINE {
             return Some((score, matches));
@@ -116,7 +116,13 @@ impl<'a> SimpleMatch<'a> {
         None
     }
 
-    fn score(start_idx: usize, end_idx: usize, pattern_len: usize, choice_len: usize) -> i64 {
+    fn score(
+        &self,
+        start_idx: usize,
+        end_idx: usize,
+        pattern_len: usize,
+        choice_len: usize,
+    ) -> i64 {
         // imagine pattern.len() = 1, but abs_diff is zero
         let closeness = start_idx.abs_diff(end_idx) - pattern_len + 1;
 
@@ -128,7 +134,7 @@ impl<'a> SimpleMatch<'a> {
             2_000_000 / closeness
         };
 
-        let first_letter_bonus = if start_idx == 0 {
+        let start_idx_bonus = if start_idx == 0 {
             200_000
         } else if start_idx <= 4 {
             100_000 / start_idx
@@ -136,9 +142,15 @@ impl<'a> SimpleMatch<'a> {
             0
         };
 
+        let first_letter_case_bonus = if self.first_letter_uppercase(start_idx) {
+            200_000
+        } else {
+            0
+        };
+
         let choice_len_neg_bonus = 1_000 * choice_len;
 
-        (closeness_score + first_letter_bonus - choice_len_neg_bonus) as i64
+        (closeness_score + start_idx_bonus - choice_len_neg_bonus + first_letter_case_bonus) as i64
     }
 
     fn forward_matches(&self, pattern_len: usize) -> Option<Vec<usize>> {
@@ -221,7 +233,7 @@ impl<'a> SimpleMatch<'a> {
     }
 
     #[inline]
-    pub fn char_equal(&self, a: char, b: char) -> bool {
+    fn char_equal(&self, a: char, b: char) -> bool {
         if !self.case_sensitive {
             if !self.is_ascii {
                 return a.to_lowercase().cmp(b.to_lowercase()) == Ordering::Equal;
@@ -230,5 +242,16 @@ impl<'a> SimpleMatch<'a> {
         }
 
         a == b
+    }
+
+    fn first_letter_uppercase(&self, start_idx: usize) -> bool {
+        let pattern_first_letter = self.pattern.chars().nth(0).unwrap();
+        let choice_first_letter = self.choice.chars().nth(start_idx).unwrap();
+
+        if !self.is_ascii {
+            return pattern_first_letter.is_uppercase() && choice_first_letter.is_uppercase();
+        }
+
+        pattern_first_letter.is_ascii_uppercase() && choice_first_letter.is_ascii_uppercase()
     }
 }
