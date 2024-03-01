@@ -244,6 +244,7 @@ impl<'a> SimpleMatch<'a> {
         a == b
     }
 
+    #[inline]
     fn first_letter_uppercase(&self, start_idx: usize) -> bool {
         let pattern_first_letter = self.pattern.chars().nth(0).unwrap();
         let choice_first_letter = self.choice.chars().nth(start_idx).unwrap();
