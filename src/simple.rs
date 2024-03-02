@@ -71,40 +71,43 @@ impl SimpleMatcher {
 struct SimpleMatch<'a> {
     choice: &'a str,
     pattern: &'a str,
+    choice_len: usize,
+    pattern_len: usize,
     case_sensitive: bool,
 }
 
 impl<'a> SimpleMatch<'a> {
     fn new(choice: &'a str, pattern: &'a str, matcher: &'a SimpleMatcher) -> Self {
         let case_sensitive = matcher.is_case_sensitive(pattern);
+        let choice_len = choice.chars().count();
+        let pattern_len = pattern.chars().count();
 
         Self {
             choice,
             pattern,
+            choice_len,
+            pattern_len,
             case_sensitive,
         }
     }
 
     fn fuzzy(&self) -> Option<(ScoreType, Vec<IndexType>)> {
-        let choice_len = self.choice.chars().count();
-        let pattern_len = self.pattern.chars().count();
-
-        if pattern_len == 0 {
+        if self.pattern_len == 0 {
             return Some((0, Vec::new()));
         }
 
-        if choice_len == 0 {
+        if self.choice_len == 0 {
             return None;
         }
 
-        let mut matches = self.forward_matches(pattern_len)?;
+        let mut matches = self.forward_matches(self.pattern_len)?;
 
         let mut start_idx = *matches.first()?;
         let end_idx = *matches.last()?;
 
-        self.reverse_matches(pattern_len, &mut start_idx, end_idx, &mut matches);
+        self.reverse_matches(self.pattern_len, &mut start_idx, end_idx, &mut matches);
 
-        let score = self.score(start_idx, end_idx, pattern_len, choice_len);
+        let score = self.score(start_idx, end_idx);
 
         if score >= BASELINE {
             return Some((score, matches));
@@ -113,15 +116,9 @@ impl<'a> SimpleMatch<'a> {
         None
     }
 
-    fn score(
-        &self,
-        start_idx: usize,
-        end_idx: usize,
-        pattern_len: usize,
-        choice_len: usize,
-    ) -> i64 {
+    fn score(&self, start_idx: usize, end_idx: usize) -> i64 {
         // imagine pattern.len() = 1, but abs_diff is zero
-        let closeness = start_idx.abs_diff(end_idx) - pattern_len + 1;
+        let closeness = start_idx.abs_diff(end_idx) - self.pattern_len + 1;
 
         let closeness_score = if closeness == 0 {
             10_000_000
@@ -145,7 +142,7 @@ impl<'a> SimpleMatch<'a> {
             0
         };
 
-        let choice_len_neg_bonus = 1_000 * choice_len;
+        let choice_len_neg_bonus = 1_000 * self.choice_len;
 
         (closeness_score + start_idx_bonus - choice_len_neg_bonus + first_letter_case_bonus) as i64
     }
