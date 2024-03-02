@@ -72,19 +72,16 @@ struct SimpleMatch<'a> {
     choice: &'a str,
     pattern: &'a str,
     case_sensitive: bool,
-    is_ascii: bool,
 }
 
 impl<'a> SimpleMatch<'a> {
     fn new(choice: &'a str, pattern: &'a str, matcher: &'a SimpleMatcher) -> Self {
         let case_sensitive = matcher.is_case_sensitive(pattern);
-        let is_ascii = pattern.is_ascii() && choice.is_ascii();
 
         Self {
             choice,
             pattern,
             case_sensitive,
-            is_ascii,
         }
     }
 
@@ -235,7 +232,7 @@ impl<'a> SimpleMatch<'a> {
     #[inline]
     fn char_equal(&self, a: char, b: char) -> bool {
         if !self.case_sensitive {
-            if !self.is_ascii {
+            if !a.is_ascii() && !b.is_ascii() {
                 return a.to_lowercase().cmp(b.to_lowercase()) == Ordering::Equal;
             }
             return a.eq_ignore_ascii_case(&b);
@@ -249,7 +246,7 @@ impl<'a> SimpleMatch<'a> {
         let pattern_first_letter = self.pattern.chars().nth(0).unwrap();
         let choice_first_letter = self.choice.chars().nth(start_idx).unwrap();
 
-        if !self.is_ascii {
+        if !pattern_first_letter.is_ascii() {
             return pattern_first_letter.is_uppercase() && choice_first_letter.is_uppercase();
         }
 
