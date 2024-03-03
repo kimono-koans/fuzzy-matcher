@@ -96,7 +96,7 @@ impl<'a> SimpleMatch<'a> {
             return Some((0, Vec::new()));
         }
 
-        if self.choice_len == 0 {
+        if self.choice_len == 0 || self.pattern_len > self.choice_len {
             return None;
         }
 
