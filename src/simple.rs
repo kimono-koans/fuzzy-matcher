@@ -74,6 +74,7 @@ struct SimpleMatch<'a> {
     choice_len: usize,
     pattern_len: usize,
     case_sensitive: bool,
+    is_ascii: bool,
 }
 
 impl<'a> SimpleMatch<'a> {
@@ -81,6 +82,7 @@ impl<'a> SimpleMatch<'a> {
         let case_sensitive = matcher.is_case_sensitive(pattern);
         let choice_len = choice.chars().count();
         let pattern_len = pattern.chars().count();
+        let is_ascii = choice_len == choice.len() && pattern_len == pattern.len();
 
         Self {
             choice,
@@ -88,6 +90,7 @@ impl<'a> SimpleMatch<'a> {
             choice_len,
             pattern_len,
             case_sensitive,
+            is_ascii,
         }
     }
 
@@ -100,12 +103,14 @@ impl<'a> SimpleMatch<'a> {
             return None;
         }
 
-        let mut matches = self.forward_matches(self.pattern_len)?;
+        let matches = if self.is_ascii {
+            ByteMatching::fuzzy(self)?
+        } else {
+            CharMatching::fuzzy(self)?
+        };
 
-        let mut start_idx = *matches.first()?;
+        let start_idx = *matches.first()?;
         let end_idx = *matches.last()?;
-
-        self.reverse_matches(self.pattern_len, &mut start_idx, end_idx, &mut matches);
 
         let score = self.score(start_idx, end_idx);
 
@@ -147,18 +152,44 @@ impl<'a> SimpleMatch<'a> {
         (closeness_score + start_idx_bonus - choice_len_neg_bonus + first_letter_case_bonus) as i64
     }
 
-    fn forward_matches(&self, pattern_len: usize) -> Option<Vec<usize>> {
+    #[inline]
+    fn first_letter_uppercase(&self, start_idx: usize) -> bool {
+        let pattern_first_letter = self.pattern.chars().nth(0).unwrap();
+        let choice_first_letter = self.choice.chars().nth(start_idx).unwrap();
+
+        if !pattern_first_letter.is_ascii() {
+            return pattern_first_letter.is_uppercase() && choice_first_letter.is_uppercase();
+        }
+
+        pattern_first_letter.is_ascii_uppercase() && choice_first_letter.is_ascii_uppercase()
+    }
+}
+
+struct CharMatching;
+
+impl CharMatching {
+    fn fuzzy(request: &SimpleMatch) -> Option<Vec<usize>> {
+        let mut matches = Self::forward_matches(request)?;
+
+        let mut start_idx = *matches.first()?;
+        let end_idx = *matches.last()?;
+
+        Self::reverse_matches(request, &mut start_idx, end_idx, &mut matches);
+        Some(matches)
+    }
+
+    fn forward_matches(request: &SimpleMatch) -> Option<Vec<usize>> {
         let mut skip = 0usize;
 
-        let mut pattern_indices: Vec<usize> = Vec::with_capacity(pattern_len);
+        let mut pattern_indices: Vec<usize> = Vec::with_capacity(request.pattern_len);
 
-        for p_char in self.pattern.chars() {
-            match self
+        for p_char in request.pattern.chars() {
+            match request
                 .choice
                 .char_indices()
                 .skip(skip)
                 .find_map(|(idx, c_char)| {
-                    if self.char_equal(p_char, c_char) {
+                    if Self::char_equal(request, p_char, c_char) {
                         skip = idx;
                         return Some(idx);
                     }
@@ -170,14 +201,13 @@ impl<'a> SimpleMatch<'a> {
             }
         }
 
-        assert!(pattern_indices.len() == pattern_len);
+        assert!(pattern_indices.len() == request.pattern_len);
 
         Some(pattern_indices)
     }
 
     fn reverse_matches(
-        &self,
-        pattern_len: usize,
+        request: &SimpleMatch,
         start_idx: &mut usize,
         end_idx: usize,
         matches: &mut Vec<usize>,
@@ -190,16 +220,16 @@ impl<'a> SimpleMatch<'a> {
 
         let mut skip = 0usize;
 
-        let mut pattern_indices: Vec<usize> = Vec::with_capacity(pattern_len);
+        let mut pattern_indices: Vec<usize> = Vec::with_capacity(request.pattern_len);
 
-        for p_char in self.pattern.chars().rev() {
-            match self
+        for p_char in request.pattern.chars().rev() {
+            match request
                 .choice
                 .char_indices()
                 .rev()
                 .skip(skip)
                 .find_map(|(idx, c_char)| {
-                    if self.char_equal(p_char, c_char) {
+                    if Self::char_equal(request, p_char, c_char) {
                         skip = idx;
                         return Some(idx);
                     }
@@ -211,7 +241,7 @@ impl<'a> SimpleMatch<'a> {
             }
         }
 
-        assert!(pattern_indices.len() == pattern_len);
+        assert!(pattern_indices.len() == request.pattern_len);
         assert!(pattern_indices.len() >= 1);
 
         let new_diff = pattern_indices.first().unwrap() - pattern_indices.last().unwrap();
@@ -227,8 +257,8 @@ impl<'a> SimpleMatch<'a> {
     }
 
     #[inline]
-    fn char_equal(&self, a: char, b: char) -> bool {
-        if !self.case_sensitive {
+    fn char_equal(request: &SimpleMatch, a: char, b: char) -> bool {
+        if !request.case_sensitive {
             if !a.is_ascii() && !b.is_ascii() {
                 return a.to_lowercase().cmp(b.to_lowercase()) == Ordering::Equal;
             }
@@ -237,16 +267,107 @@ impl<'a> SimpleMatch<'a> {
 
         a == b
     }
+}
 
-    #[inline]
-    fn first_letter_uppercase(&self, start_idx: usize) -> bool {
-        let pattern_first_letter = self.pattern.chars().nth(0).unwrap();
-        let choice_first_letter = self.choice.chars().nth(start_idx).unwrap();
+struct ByteMatching;
 
-        if !pattern_first_letter.is_ascii() {
-            return pattern_first_letter.is_uppercase() && choice_first_letter.is_uppercase();
+impl ByteMatching {
+    fn fuzzy(request: &SimpleMatch) -> Option<Vec<usize>> {
+        let mut matches = Self::forward_matches(request)?;
+
+        let mut start_idx = *matches.first()?;
+        let end_idx = *matches.last()?;
+
+        Self::reverse_matches(request, &mut start_idx, end_idx, &mut matches);
+        Some(matches)
+    }
+
+    fn forward_matches(request: &SimpleMatch) -> Option<Vec<usize>> {
+        let mut skip = 0usize;
+
+        let mut pattern_indices: Vec<usize> = Vec::with_capacity(request.pattern_len);
+
+        for p_char in request.pattern.bytes() {
+            match request
+                .choice
+                .bytes()
+                .enumerate()
+                .skip(skip)
+                .find_map(|(idx, c_char)| {
+                    if Self::byte_equal(request, p_char, c_char) {
+                        skip = idx;
+                        return Some(idx);
+                    }
+
+                    None
+                }) {
+                Some(char_idx) => pattern_indices.push(char_idx),
+                None => return None,
+            }
         }
 
-        pattern_first_letter.is_ascii_uppercase() && choice_first_letter.is_ascii_uppercase()
+        assert!(pattern_indices.len() == request.pattern_len);
+
+        Some(pattern_indices)
+    }
+
+    fn reverse_matches(
+        request: &SimpleMatch,
+        start_idx: &mut usize,
+        end_idx: usize,
+        matches: &mut Vec<usize>,
+    ) {
+        let idx_abs_diff = start_idx.abs_diff(end_idx);
+
+        if idx_abs_diff == 0 {
+            return;
+        }
+
+        let mut skip = 0usize;
+
+        let mut pattern_indices: Vec<usize> = Vec::with_capacity(request.pattern_len);
+
+        for p_char in request.pattern.bytes().rev() {
+            match request
+                .choice
+                .bytes()
+                .enumerate()
+                .rev()
+                .skip(skip)
+                .find_map(|(idx, c_char)| {
+                    if Self::byte_equal(request, p_char, c_char) {
+                        skip = idx;
+                        return Some(idx);
+                    }
+
+                    None
+                }) {
+                Some(char_idx) => pattern_indices.push(char_idx),
+                None => return,
+            }
+        }
+
+        assert!(pattern_indices.len() == request.pattern_len);
+        assert!(pattern_indices.len() >= 1);
+
+        let new_diff = pattern_indices.first().unwrap() - pattern_indices.last().unwrap();
+
+        if idx_abs_diff > new_diff {
+            pattern_indices.reverse();
+
+            let first = pattern_indices.first().unwrap();
+
+            *start_idx = *first;
+            *matches = pattern_indices;
+        }
+    }
+
+    #[inline]
+    fn byte_equal(request: &SimpleMatch, a: u8, b: u8) -> bool {
+        if !request.case_sensitive {
+            return a.eq_ignore_ascii_case(&b);
+        }
+
+        a == b
     }
 }
