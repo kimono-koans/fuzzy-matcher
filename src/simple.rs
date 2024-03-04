@@ -157,7 +157,7 @@ impl<'a> SimpleMatch<'a> {
             0
         };
 
-        let follows_special_char_bonus = self.follows_special_char(matches) * 10_000;
+        let follows_special_char_bonus = self.follows_special_char(matches) * 5_000;
 
         (closeness_score + start_idx_bonus + first_letter_case_bonus + follows_special_char_bonus)
             as i64
