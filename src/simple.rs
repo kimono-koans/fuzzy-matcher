@@ -183,7 +183,7 @@ impl<'a> SimpleMatch<'a> {
         let start_idx = *matches.first().unwrap_or(&0);
         let end_idx = *matches.last().unwrap_or(&0);
 
-        let idx_abs_diff = start_idx.abs_diff(end_idx);
+        let idx_abs_diff = end_idx - start_idx;
 
         if idx_abs_diff == 0 {
             return;
@@ -354,8 +354,8 @@ impl<'a> ByteMatching<'a> {
         let mut new_diff = 0usize;
 
         for p_char in self.inner.pattern.bytes().rev() {
-            new_diff = pattern_indices.first().unwrap_or(&0usize)
-                - pattern_indices.last().unwrap_or(&0usize);
+            new_diff = pattern_indices.last().unwrap_or(&0usize)
+                - pattern_indices.first().unwrap_or(&0usize);
 
             if new_diff > idx_abs_diff {
                 return new_diff;
