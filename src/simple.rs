@@ -84,7 +84,6 @@ impl<'a> SimpleMatch<'a> {
         let mut pattern_len = pattern.len();
 
         let is_ascii = choice.is_ascii() && pattern.is_ascii();
-
         if !is_ascii {
             choice_len = choice.chars().count();
             pattern_len = pattern.chars().count();
@@ -200,11 +199,15 @@ impl<'a> SimpleMatch<'a> {
     #[inline]
     fn first_letter_uppercase(&self, start_idx: usize) -> bool {
         if !self.is_ascii {
-            let pattern_first_letter = self.pattern.chars().nth(0).unwrap();
-            let choice_first_letter = self.choice.chars().nth(start_idx).unwrap();
-
-            return pattern_first_letter.is_uppercase() && choice_first_letter.is_uppercase();
+            return self.pattern.chars().nth(0).unwrap().is_ascii_uppercase()
+                && self
+                    .choice
+                    .chars()
+                    .nth(start_idx)
+                    .unwrap()
+                    .is_ascii_uppercase();
         }
+
         self.pattern.bytes().nth(0).unwrap().is_ascii_uppercase()
             && self
                 .choice
