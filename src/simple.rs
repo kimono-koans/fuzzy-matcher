@@ -272,8 +272,8 @@ impl<'a> CharMatching<'a> {
         let mut new_diff = 0usize;
 
         for p_char in self.inner.pattern.chars().rev() {
-            new_diff = pattern_indices.first().unwrap_or(&0usize)
-                - pattern_indices.last().unwrap_or(&0usize);
+            new_diff = pattern_indices.last().unwrap_or(&0usize)
+                - pattern_indices.first().unwrap_or(&0usize);
 
             if new_diff > idx_abs_diff {
                 return new_diff;
