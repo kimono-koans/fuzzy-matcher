@@ -209,7 +209,7 @@ impl<'a> SimpleMatch<'a> {
                 self.choice
                     .bytes()
                     .nth(previous)
-                    .map(|b| b == b'/' || b == b':' || b == b'-' || b == b'_')
+                    .map(|b| b == b'/' || b == b':' || b == b'-' || b == b'_' || b == b' ')
             })
             .count()
     }
