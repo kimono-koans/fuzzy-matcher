@@ -135,11 +135,11 @@ impl<'a> SimpleMatch<'a> {
             1_000_000 / closeness
         };
 
-        let pat_contains_non_alpha = self.pattern.contains(|c: char| !c.is_alphabetic());
+        let pat_contains_non_alpha = self.pattern.contains(|c: char| !c.is_ascii_alphabetic());
 
         let first_alpha_char = if !pat_contains_non_alpha {
             self.choice
-                .find(|c: char| c.is_alphabetic())
+                .find(|c: char| c.is_ascii_alphabetic())
                 .unwrap_or(start_idx)
         } else {
             start_idx
