@@ -145,9 +145,9 @@ impl<'a> SimpleMatch<'a> {
             0
         };
 
-        let follows_special_char_bonus = self.follows_special_char(matches) * 1_000;
+        let follows_special_char_bonus = self.follows_special_char(matches) * 10_000;
 
-        let choice_len_neg_bonus = 500 * self.choice_len;
+        let choice_len_neg_bonus = 50 * self.choice_len;
 
         (closeness_score + start_idx_bonus - choice_len_neg_bonus
             + first_letter_case_bonus
