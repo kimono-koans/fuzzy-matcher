@@ -181,13 +181,11 @@ impl<'a> SimpleMatch<'a> {
 
         let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
 
-        if self.is_ascii {
-            ByteMatching::from(self).reverse(&mut pattern_indices)
+        let new_diff = if self.is_ascii {
+            ByteMatching::from(self).reverse(&mut pattern_indices, idx_abs_diff)
         } else {
-            CharMatching::from(self).reverse(&mut pattern_indices)
-        }
-
-        let new_diff = pattern_indices.first().unwrap() - pattern_indices.last().unwrap();
+            CharMatching::from(self).reverse(&mut pattern_indices, idx_abs_diff)
+        };
 
         if idx_abs_diff > new_diff {
             pattern_indices.reverse();
@@ -250,10 +248,17 @@ impl<'a> CharMatching<'a> {
             }
         }
     }
-    fn reverse(&self, pattern_indices: &mut Vec<usize>) {
+    fn reverse(&self, pattern_indices: &mut Vec<usize>, idx_abs_diff: usize) -> usize {
         let mut skip = 0usize;
+        let mut new_diff = 0usize;
 
         for p_char in self.inner.pattern.chars().rev() {
+            new_diff = pattern_indices.first().unwrap() - pattern_indices.last().unwrap();
+
+            if new_diff > idx_abs_diff {
+                return new_diff;
+            }
+
             match self
                 .inner
                 .choice
@@ -269,9 +274,11 @@ impl<'a> CharMatching<'a> {
                     None
                 }) {
                 Some(char_idx) => pattern_indices.push(char_idx),
-                None => return,
+                None => return new_diff,
             }
         }
+
+        new_diff
     }
 
     #[inline]
@@ -321,10 +328,18 @@ impl<'a> ByteMatching<'a> {
             }
         }
     }
-    fn reverse(&self, pattern_indices: &mut Vec<usize>) {
+    fn reverse(&self, pattern_indices: &mut Vec<usize>, idx_abs_diff: usize) -> usize {
         let mut skip = 0usize;
 
+        let mut new_diff = 0usize;
+
         for p_char in self.inner.pattern.bytes().rev() {
+            new_diff = pattern_indices.first().unwrap() - pattern_indices.last().unwrap();
+
+            if new_diff > idx_abs_diff {
+                return new_diff;
+            }
+
             match self
                 .inner
                 .choice
@@ -341,9 +356,10 @@ impl<'a> ByteMatching<'a> {
                     None
                 }) {
                 Some(char_idx) => pattern_indices.push(char_idx),
-                None => return,
+                None => return new_diff,
             }
         }
+        new_diff
     }
 
     #[inline]
