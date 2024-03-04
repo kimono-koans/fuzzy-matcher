@@ -129,11 +129,23 @@ impl<'a> SimpleMatch<'a> {
 
         let closeness_score = if closeness == 0 {
             1_000_000
+        } else if closeness >= 6 {
+            0
         } else {
             1_000_000 / closeness
         };
 
-        let start_idx_bonus = if start_idx == 0 {
+        let pat_contains_non_alphabetic = self.pattern.contains(|c: char| !c.is_alphabetic());
+
+        let first_alpha_char = if !pat_contains_non_alphabetic {
+            self.choice
+                .find(|c: char| c.is_alphabetic())
+                .unwrap_or(start_idx)
+        } else {
+            start_idx
+        };
+
+        let start_idx_bonus = if first_alpha_char == 0 {
             200_000
         } else {
             200_000 / start_idx
