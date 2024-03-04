@@ -125,8 +125,7 @@ impl<'a> SimpleMatch<'a> {
     }
 
     fn score(&self, start_idx: usize, end_idx: usize) -> i64 {
-        // imagine pattern.len() = 1, but abs_diff is zero
-        let closeness = start_idx.abs_diff(end_idx) - self.pattern_len + 1;
+        let closeness = start_idx.abs_diff(end_idx);
 
         let closeness_score = if closeness == 0 {
             10_000_000
