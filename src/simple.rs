@@ -214,10 +214,9 @@ impl<'a> SimpleMatch<'a> {
                     return None;
                 }
 
-                self.choice
-                    .bytes()
-                    .nth(previous)
-                    .map(|b| b == b'/' || b == b':' || b == b'-' || b == b'_' || b == b' ')
+                self.choice.bytes().nth(previous).map(|b| {
+                    b == b'\t' || b == b'/' || b == b':' || b == b'-' || b == b'_' || b == b' '
+                })
             })
             .count()
     }
