@@ -115,7 +115,7 @@ impl<'a> SimpleMatch<'a> {
 
         self.reverse_matches(&mut start_idx, end_idx, &mut matches);
 
-        let score = self.score(start_idx, end_idx);
+        let score = self.score(start_idx, end_idx, &matches);
 
         if score >= BASELINE {
             return Some((score, matches));
@@ -124,34 +124,34 @@ impl<'a> SimpleMatch<'a> {
         None
     }
 
-    fn score(&self, start_idx: usize, end_idx: usize) -> i64 {
+    fn score(&self, start_idx: usize, end_idx: usize, matches: &[usize]) -> i64 {
         let closeness = start_idx.abs_diff(end_idx);
 
         let closeness_score = if closeness == 0 {
-            10_000_000
-        } else if closeness >= 4 {
-            0
+            1_000_000
         } else {
-            2_000_000 / closeness
+            1_000_000 / closeness
         };
 
         let start_idx_bonus = if start_idx == 0 {
             200_000
-        } else if start_idx <= 4 {
-            100_000 / start_idx
         } else {
-            0
+            200_000 / start_idx
         };
 
         let first_letter_case_bonus = if self.first_letter_uppercase(start_idx) {
-            200_000
+            20_000
         } else {
             0
         };
 
-        let choice_len_neg_bonus = 1_000 * self.choice_len;
+        let follows_special_char_bonus = self.follows_special_char(matches) * 1_000;
 
-        (closeness_score + start_idx_bonus - choice_len_neg_bonus + first_letter_case_bonus) as i64
+        let choice_len_neg_bonus = 500 * self.choice_len;
+
+        (closeness_score + start_idx_bonus - choice_len_neg_bonus
+            + first_letter_case_bonus
+            + follows_special_char_bonus) as i64
     }
 
     fn forward_matches(&self) -> Option<Vec<usize>> {
@@ -196,17 +196,26 @@ impl<'a> SimpleMatch<'a> {
     }
 
     #[inline]
-    fn first_letter_uppercase(&self, start_idx: usize) -> bool {
-        if !self.is_ascii {
-            return self.pattern.chars().nth(0).unwrap().is_ascii_uppercase()
-                && self
-                    .choice
-                    .chars()
-                    .nth(start_idx)
-                    .unwrap()
-                    .is_ascii_uppercase();
-        }
+    fn follows_special_char(&self, matches: &[usize]) -> usize {
+        matches
+            .iter()
+            .map(|idx| {
+                let previous = idx - 1;
 
+                if previous <= 0 {
+                    return None;
+                }
+
+                self.choice
+                    .bytes()
+                    .nth(previous)
+                    .map(|b| b == b'/' || b == b':' || b == b'-' || b == b'_')
+            })
+            .count()
+    }
+
+    #[inline]
+    fn first_letter_uppercase(&self, start_idx: usize) -> bool {
         self.pattern.bytes().nth(0).unwrap().is_ascii_uppercase()
             && self
                 .choice
