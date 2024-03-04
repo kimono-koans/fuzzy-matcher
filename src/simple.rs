@@ -110,12 +110,9 @@ impl<'a> SimpleMatch<'a> {
 
         let mut matches = self.forward_matches()?;
 
-        let mut start_idx = *matches.first()?;
-        let end_idx = *matches.last()?;
+        self.reverse_matches(&mut matches);
 
-        self.reverse_matches(&mut start_idx, end_idx, &mut matches);
-
-        let score = self.score(start_idx, end_idx, &matches);
+        let score = self.score(&matches);
 
         if score >= BASELINE {
             return Some((score, matches));
@@ -124,20 +121,23 @@ impl<'a> SimpleMatch<'a> {
         None
     }
 
-    fn score(&self, start_idx: usize, end_idx: usize, matches: &[usize]) -> i64 {
-        let closeness = start_idx.abs_diff(end_idx);
+    fn score(&self, matches: &[usize]) -> i64 {
+        let start_idx = *matches.first().unwrap_or(&0);
+        let end_idx = *matches.last().unwrap_or(&0);
+
+        let closeness = end_idx - start_idx;
 
         let closeness_score = if closeness == 0 {
-            1_000_000
-        } else if closeness >= 6 {
+            10_000_000
+        } else if closeness >= 4 {
             0
         } else {
             1_000_000 / closeness
         };
 
-        let pat_contains_non_alphabetic = self.pattern.contains(|c: char| !c.is_alphabetic());
+        let pat_contains_non_alpha = self.pattern.contains(|c: char| !c.is_alphabetic());
 
-        let first_alpha_char = if !pat_contains_non_alphabetic {
+        let first_alpha_char = if !pat_contains_non_alpha {
             self.choice
                 .find(|c: char| c.is_alphabetic())
                 .unwrap_or(start_idx)
@@ -159,11 +159,8 @@ impl<'a> SimpleMatch<'a> {
 
         let follows_special_char_bonus = self.follows_special_char(matches) * 10_000;
 
-        let choice_len_neg_bonus = 50 * self.choice_len;
-
-        (closeness_score + start_idx_bonus - choice_len_neg_bonus
-            + first_letter_case_bonus
-            + follows_special_char_bonus) as i64
+        (closeness_score + start_idx_bonus + first_letter_case_bonus + follows_special_char_bonus)
+            as i64
     }
 
     fn forward_matches(&self) -> Option<Vec<usize>> {
@@ -182,7 +179,10 @@ impl<'a> SimpleMatch<'a> {
         Some(pattern_indices)
     }
 
-    fn reverse_matches(&self, start_idx: &mut usize, end_idx: usize, matches: &mut Vec<usize>) {
+    fn reverse_matches(&self, matches: &mut Vec<usize>) {
+        let start_idx = *matches.first().unwrap_or(&0);
+        let end_idx = *matches.last().unwrap_or(&0);
+
         let idx_abs_diff = start_idx.abs_diff(end_idx);
 
         if idx_abs_diff == 0 {
@@ -199,10 +199,6 @@ impl<'a> SimpleMatch<'a> {
 
         if idx_abs_diff > new_diff {
             pattern_indices.reverse();
-
-            let first = pattern_indices.first().unwrap();
-
-            *start_idx = *first;
             *matches = pattern_indices;
         }
     }
