@@ -168,25 +168,6 @@ impl<'a> SimpleMatch<'a> {
             + word_boundary_bonus) as i64
     }
 
-    fn word_boundary(&self, matches: &[usize]) -> usize {
-        matches
-            .iter()
-            .filter(|idx| {
-                if idx == &&0 {
-                    return true;
-                }
-
-                let previous = *idx - 1;
-
-                self.choice
-                    .bytes()
-                    .nth(previous)
-                    .map(|b| b == b'\t' || b == b' ')
-                    .unwrap_or(false)
-            })
-            .count()
-    }
-
     fn forward_matches(&self) -> Option<Vec<usize>> {
         let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
 
@@ -231,6 +212,26 @@ impl<'a> SimpleMatch<'a> {
             pattern_indices.reverse();
             *matches = pattern_indices;
         }
+    }
+
+    #[inline]
+    fn word_boundary(&self, matches: &[usize]) -> usize {
+        matches
+            .iter()
+            .filter(|idx| {
+                if idx == &&0 {
+                    return true;
+                }
+
+                let previous = *idx - 1;
+
+                self.choice
+                    .bytes()
+                    .nth(previous)
+                    .map(|b| b == b'\t' || b == b' ')
+                    .unwrap_or(false)
+            })
+            .count()
     }
 
     #[inline]
@@ -375,8 +376,6 @@ impl<'a> ByteMatching<'a> {
     fn reverse(&self, pattern_indices: &mut Vec<usize>, idx_abs_diff: usize) {
         let mut skip = 0usize;
 
-        let mut new_diff = 0usize;
-
         for p_char in self.inner.pattern.bytes().rev() {
             // first is greater than last in reverse context
             match self
@@ -386,7 +385,7 @@ impl<'a> ByteMatching<'a> {
                 .enumerate()
                 .rev()
                 .skip(skip)
-                .take_while(|(idx, c_char)| {
+                .take_while(|(idx, _c_char)| {
                     let new_diff = self.inner.pattern_len
                         - (pattern_indices.first().unwrap_or(&0usize) - idx + 1);
                     new_diff < idx_abs_diff
