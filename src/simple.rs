@@ -3,7 +3,7 @@ use crate::IndexType;
 use crate::ScoreType;
 use std::cmp::Ordering;
 
-const BASELINE: i64 = 131_072;
+const BASELINE: i64 = 65_536;
 
 impl FuzzyMatcher for SimpleMatcher {
     fn fuzzy_indices(&self, choice: &str, pattern: &str) -> Option<(ScoreType, Vec<IndexType>)> {
@@ -129,6 +129,8 @@ impl<'a> SimpleMatch<'a> {
 
         let closeness_score = if closeness == 0 {
             1_048_576
+        } else if closeness == 0 {
+            524_288
         } else {
             131_072 - (closeness.pow(2) * (131_072 / self.pattern_len))
         };
@@ -144,9 +146,9 @@ impl<'a> SimpleMatch<'a> {
         };
 
         let start_idx_bonus = if first_alpha_char == 0 {
-            16_384
+            32_768
         } else {
-            8_192 / start_idx.pow(2)
+            16_384 / start_idx
         };
 
         let first_letter_case_bonus = if self.first_letter_uppercase(start_idx) {
@@ -155,11 +157,7 @@ impl<'a> SimpleMatch<'a> {
             0
         };
 
-        let word_boundary_bonus = if self.word_boundary(matches) {
-            16_384
-        } else {
-            0
-        };
+        let word_boundary_bonus = self.word_boundary(matches) * 16_384;
 
         let follows_special_char_bonus = self.follows_special_char(matches) * 4_096;
 
@@ -170,22 +168,23 @@ impl<'a> SimpleMatch<'a> {
             + word_boundary_bonus) as i64
     }
 
-    fn word_boundary(&self, matches: &[usize]) -> bool {
+    fn word_boundary(&self, matches: &[usize]) -> usize {
         matches
-            .first()
-            .and_then(|idx| {
-                let previous = idx - 1;
-
-                if previous <= 0 {
-                    return None;
+            .iter()
+            .filter(|idx| {
+                if idx == &&0 {
+                    return true;
                 }
+
+                let previous = *idx - 1;
 
                 self.choice
                     .bytes()
                     .nth(previous)
                     .map(|b| b == b'\t' || b == b' ')
+                    .unwrap_or(false)
             })
-            .unwrap_or(false)
+            .count()
     }
 
     fn forward_matches(&self) -> Option<Vec<usize>> {
