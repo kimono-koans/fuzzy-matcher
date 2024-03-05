@@ -278,6 +278,7 @@ impl<'a> CharMatching<'a> {
                 .choice
                 .char_indices()
                 .skip(skip)
+                .skip_while(|(_idx, c_char)| c_char == &' ')
                 .find_map(|(idx, c_char)| {
                     if self.char_equal(p_char, c_char) {
                         skip = idx;
@@ -310,6 +311,7 @@ impl<'a> CharMatching<'a> {
                 .char_indices()
                 .rev()
                 .skip(skip)
+                .skip_while(|(_idx, c_char)| c_char == &' ')
                 .find_map(|(idx, c_char)| {
                     if self.char_equal(p_char, c_char) {
                         skip = idx;
@@ -360,6 +362,7 @@ impl<'a> ByteMatching<'a> {
                 .bytes()
                 .enumerate()
                 .skip(skip)
+                .skip_while(|(_idx, c_char)| c_char == &b' ')
                 .find_map(|(idx, c_char)| {
                     if self.byte_equal(p_char, c_char) {
                         skip = idx;
@@ -394,6 +397,7 @@ impl<'a> ByteMatching<'a> {
                 .enumerate()
                 .rev()
                 .skip(skip)
+                .skip_while(|(_idx, c_char)| c_char == &b' ')
                 .find_map(|(idx, c_char)| {
                     if self.byte_equal(p_char, c_char) {
                         skip = idx;
