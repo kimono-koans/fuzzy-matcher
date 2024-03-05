@@ -207,21 +207,21 @@ impl<'a> SimpleMatch<'a> {
         let start_idx = *matches.first().unwrap_or(&0);
         let end_idx = *matches.last().unwrap_or(&0);
 
-        let idx_abs_diff = end_idx - start_idx;
+        let closeness = self.pattern_len - (end_idx - start_idx + 1);
 
-        if idx_abs_diff == 0 {
+        if closeness == 0 {
             return;
         }
 
         let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
 
-        let new_diff = if self.is_ascii {
-            ByteMatching::from(self).reverse(&mut pattern_indices, idx_abs_diff)
+        let new_closeness = if self.is_ascii {
+            ByteMatching::from(self).reverse(&mut pattern_indices, closeness)
         } else {
-            CharMatching::from(self).reverse(&mut pattern_indices, idx_abs_diff)
+            CharMatching::from(self).reverse(&mut pattern_indices, closeness)
         };
 
-        if new_diff < idx_abs_diff {
+        if new_closeness < closeness {
             pattern_indices.reverse();
             *matches = pattern_indices;
         }
@@ -296,8 +296,10 @@ impl<'a> CharMatching<'a> {
 
         for p_char in self.inner.pattern.chars().rev() {
             // first is greater than last in reverse context
-            new_diff = pattern_indices.first().unwrap_or(&0usize)
-                - pattern_indices.last().unwrap_or(&0usize);
+            new_diff = self.inner.pattern_len
+                - (pattern_indices.first().unwrap_or(&0usize)
+                    - pattern_indices.last().unwrap_or(&0usize)
+                    + 1);
 
             if new_diff > idx_abs_diff {
                 return new_diff;
@@ -379,8 +381,10 @@ impl<'a> ByteMatching<'a> {
 
         for p_char in self.inner.pattern.bytes().rev() {
             // first is greater than last in reverse context
-            new_diff = pattern_indices.first().unwrap_or(&0usize)
-                - pattern_indices.last().unwrap_or(&0usize);
+            new_diff = self.inner.pattern_len
+                - (pattern_indices.first().unwrap_or(&0usize)
+                    - pattern_indices.last().unwrap_or(&0usize)
+                    + 1);
 
             if new_diff > idx_abs_diff {
                 return new_diff;
