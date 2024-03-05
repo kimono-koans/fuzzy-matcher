@@ -131,8 +131,10 @@ impl<'a> SimpleMatch<'a> {
             1_048_576
         } else if closeness == 1 {
             524_288
+        } else if closeness <= 6 {
+            262144 - (closeness.pow(2) * (262144 / self.pattern_len))
         } else {
-            131_072 - (closeness.pow(2) * (131_072 / self.pattern_len))
+            0
         };
 
         let pat_contains_non_alpha = self.pattern.contains(|c: char| !c.is_ascii_alphabetic());
@@ -147,8 +149,10 @@ impl<'a> SimpleMatch<'a> {
 
         let start_idx_bonus = if first_alpha_char == 0 {
             32_768
-        } else {
+        } else if first_alpha_char <= 4 {
             16_384 / start_idx
+        } else {
+            0
         };
 
         let first_letter_case_bonus = if self.first_letter_uppercase(start_idx) {
