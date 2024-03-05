@@ -125,12 +125,12 @@ impl<'a> SimpleMatch<'a> {
         let start_idx = *matches.first().unwrap_or(&0);
         let end_idx = *matches.last().unwrap_or(&0);
 
-        let closeness = end_idx - start_idx;
+        let closeness = self.pattern_len - (end_idx - start_idx + 1);
 
         let closeness_score = if closeness == 0 {
-            524_280
+            1048560
         } else {
-            131_070 - (closeness.pow(2) * (131_070 / self.pattern_len))
+            131_072 - (closeness.pow(2) * (131_072 / self.pattern_len))
         };
 
         let pat_contains_non_alpha = self.pattern.contains(|c: char| !c.is_ascii_alphabetic());
@@ -163,14 +163,11 @@ impl<'a> SimpleMatch<'a> {
 
         let follows_special_char_bonus = self.follows_special_char(matches) * 5_000;
 
-        let choice_size_neg_score = self.choice_len * 500;
-
         (closeness_score
             + start_idx_bonus
             + first_letter_case_bonus
             + follows_special_char_bonus
-            + word_boundary_bonus
-            - choice_size_neg_score) as i64
+            + word_boundary_bonus) as i64
     }
 
     fn word_boundary(&self, matches: &[usize]) -> bool {
