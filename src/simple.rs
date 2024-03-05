@@ -146,9 +146,9 @@ impl<'a> SimpleMatch<'a> {
         };
 
         let start_idx_bonus = if first_alpha_char == 0 {
-            200_000
+            20_000
         } else {
-            200_000 / start_idx
+            20_000 / start_idx
         };
 
         let first_letter_case_bonus = if self.first_letter_uppercase(start_idx) {
@@ -157,10 +157,37 @@ impl<'a> SimpleMatch<'a> {
             0
         };
 
-        let follows_special_char_bonus = self.follows_special_char(matches) * 5_000;
+        let word_boundary_bonus = if self.word_boundary(matches) {
+            20_000
+        } else {
+            0
+        };
 
-        (closeness_score + start_idx_bonus + first_letter_case_bonus + follows_special_char_bonus)
-            as i64
+        let follows_special_char_bonus = self.follows_special_char(matches) * 1_000;
+
+        (closeness_score
+            + start_idx_bonus
+            + first_letter_case_bonus
+            + follows_special_char_bonus
+            + word_boundary_bonus) as i64
+    }
+
+    fn word_boundary(&self, matches: &[usize]) -> bool {
+        matches
+            .first()
+            .and_then(|idx| {
+                let previous = idx - 1;
+
+                if previous <= 0 {
+                    return None;
+                }
+
+                self.choice
+                    .bytes()
+                    .nth(previous)
+                    .map(|b| b == b'\t' || b == b' ')
+            })
+            .unwrap_or(false)
     }
 
     fn forward_matches(&self) -> Option<Vec<usize>> {
@@ -271,8 +298,9 @@ impl<'a> CharMatching<'a> {
         let mut new_diff = 0usize;
 
         for p_char in self.inner.pattern.chars().rev() {
-            new_diff = pattern_indices.last().unwrap_or(&0usize)
-                - pattern_indices.first().unwrap_or(&0usize);
+            // first is greater than last in reverse context
+            new_diff = pattern_indices.first().unwrap_or(&0usize)
+                - pattern_indices.last().unwrap_or(&0usize);
 
             if new_diff > idx_abs_diff {
                 return new_diff;
@@ -353,8 +381,9 @@ impl<'a> ByteMatching<'a> {
         let mut new_diff = 0usize;
 
         for p_char in self.inner.pattern.bytes().rev() {
-            new_diff = pattern_indices.last().unwrap_or(&0usize)
-                - pattern_indices.first().unwrap_or(&0usize);
+            // first is greater than last in reverse context
+            new_diff = pattern_indices.first().unwrap_or(&0usize)
+                - pattern_indices.last().unwrap_or(&0usize);
 
             if new_diff > idx_abs_diff {
                 return new_diff;
