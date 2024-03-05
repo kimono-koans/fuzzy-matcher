@@ -192,7 +192,7 @@ impl<'a> SimpleMatch<'a> {
         let start_idx = *matches.first().unwrap_or(&0);
         let end_idx = *matches.last().unwrap_or(&0);
 
-        let diff = self.pattern_len - (end_idx - start_idx + 1);
+        let diff = end_idx - start_idx + 1;
 
         if diff == 0 {
             return;
@@ -208,7 +208,7 @@ impl<'a> SimpleMatch<'a> {
 
         let reverse_start_idx = *pattern_indices.first().unwrap_or(&0);
         let reverse_end_idx = *pattern_indices.last().unwrap_or(&0);
-        let reverse_diff = self.pattern_len - (reverse_end_idx - reverse_start_idx + 1);
+        let reverse_diff = reverse_end_idx - reverse_start_idx + 1;
 
         if reverse_diff < diff {
             *matches = pattern_indices;
@@ -377,5 +377,19 @@ impl<'a> ByteMatching<'a> {
         }
 
         a == b
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_simple_reverse() {
+        let matcher = SimpleMatcher::default();
+        assert_eq!(
+            vec![7, 8, 9, 10],
+            matcher.fuzzy_indices("bullsh shit\n", "shit").unwrap().1
+        );
     }
 }
