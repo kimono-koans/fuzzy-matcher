@@ -277,41 +277,33 @@ impl<'a> From<&'a SimpleMatch<'a>> for CharMatching<'a> {
 
 impl<'a> CharMatching<'a> {
     fn forward(&self, pattern_indices: &mut Vec<usize>) {
-        let mut skip = 0usize;
+        let mut choice_iter = self.inner.choice.char_indices();
 
         for p_char in self.inner.pattern.chars() {
-            match self
-                .inner
-                .choice
-                .char_indices()
-                .skip(skip)
-                .find_map(|(idx, c_char)| {
-                    if self.char_equal(p_char, c_char) {
-                        skip = idx;
-                        return Some(idx);
-                    }
+            match choice_iter.find_map(|(idx, c_char)| {
+                if self.char_equal(p_char, c_char) {
+                    return Some(idx);
+                }
 
-                    None
-                }) {
+                None
+            }) {
                 Some(char_idx) => pattern_indices.push(char_idx),
                 None => return,
             }
         }
     }
     fn reverse(&self, pattern_indices: &mut Vec<usize>) {
-        for p_char in self.inner.pattern.chars().rev() {
-            match self
-                .inner
-                .choice
-                .char_indices()
-                .rev()
-                .find_map(|(idx, c_char)| {
-                    if self.char_equal(p_char, c_char) {
-                        return Some(idx);
-                    }
+        let mut choice_iter = self.inner.choice.char_indices().rev();
 
-                    None
-                }) {
+        for p_char in self.inner.pattern.chars().rev() {
+            // first is greater than last in reverse context
+            match choice_iter.find_map(|(idx, c_char)| {
+                if self.char_equal(p_char, c_char) {
+                    return Some(idx);
+                }
+
+                None
+            }) {
                 Some(char_idx) => pattern_indices.push(char_idx),
                 None => return,
             }
@@ -344,44 +336,33 @@ impl<'a> From<&'a SimpleMatch<'a>> for ByteMatching<'a> {
 
 impl<'a> ByteMatching<'a> {
     fn forward(&self, pattern_indices: &mut Vec<usize>) {
-        let mut skip = 0usize;
+        let mut choice_iter = self.inner.choice.bytes().enumerate();
 
         for p_char in self.inner.pattern.bytes() {
-            match self
-                .inner
-                .choice
-                .bytes()
-                .enumerate()
-                .skip(skip)
-                .find_map(|(idx, c_char)| {
-                    if self.byte_equal(p_char, c_char) {
-                        skip = idx;
-                        return Some(idx);
-                    }
+            match choice_iter.find_map(|(idx, c_char)| {
+                if self.byte_equal(p_char, c_char) {
+                    return Some(idx);
+                }
 
-                    None
-                }) {
+                None
+            }) {
                 Some(char_idx) => pattern_indices.push(char_idx),
                 None => return,
             }
         }
     }
     fn reverse(&self, pattern_indices: &mut Vec<usize>) {
+        let mut choice_iter = self.inner.choice.bytes().enumerate().rev();
+
         for p_char in self.inner.pattern.bytes().rev() {
             // first is greater than last in reverse context
-            match self
-                .inner
-                .choice
-                .bytes()
-                .enumerate()
-                .rev()
-                .find_map(|(idx, c_char)| {
-                    if self.byte_equal(p_char, c_char) {
-                        return Some(idx);
-                    }
+            match choice_iter.find_map(|(idx, c_char)| {
+                if self.byte_equal(p_char, c_char) {
+                    return Some(idx);
+                }
 
-                    None
-                }) {
+                None
+            }) {
                 Some(char_idx) => pattern_indices.push(char_idx),
                 None => return,
             }
