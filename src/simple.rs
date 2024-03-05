@@ -224,7 +224,8 @@ impl<'a> SimpleMatch<'a> {
         let reverse_start_idx = *pattern_indices.first().unwrap_or(&0);
         let reverse_end_idx = *pattern_indices.last().unwrap_or(&0);
 
-        let reverse_closeness = self.pattern_len - (reverse_end_idx - reverse_start_idx + 1);
+        // start and end are reversed remember!
+        let reverse_closeness = self.pattern_len - (reverse_start_idx - reverse_end_idx + 1);
 
         if reverse_closeness < closeness {
             pattern_indices.reverse();
