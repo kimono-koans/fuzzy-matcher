@@ -215,13 +215,18 @@ impl<'a> SimpleMatch<'a> {
 
         let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
 
-        let new_closeness = if self.is_ascii {
+        if self.is_ascii {
             ByteMatching::from(self).reverse(&mut pattern_indices, closeness)
         } else {
             CharMatching::from(self).reverse(&mut pattern_indices, closeness)
         };
 
-        if new_closeness < closeness {
+        let reverse_start_idx = *pattern_indices.first().unwrap_or(&0);
+        let reverse_end_idx = *pattern_indices.last().unwrap_or(&0);
+
+        let reverse_closeness = self.pattern_len - (reverse_end_idx - reverse_start_idx + 1);
+
+        if reverse_closeness < closeness {
             pattern_indices.reverse();
             *matches = pattern_indices;
         }
@@ -290,27 +295,21 @@ impl<'a> CharMatching<'a> {
             }
         }
     }
-    fn reverse(&self, pattern_indices: &mut Vec<usize>, idx_abs_diff: usize) -> usize {
+    fn reverse(&self, pattern_indices: &mut Vec<usize>, idx_abs_diff: usize) {
         let mut skip = 0usize;
-        let mut new_diff = 0usize;
 
         for p_char in self.inner.pattern.chars().rev() {
-            // first is greater than last in reverse context
-            new_diff = self.inner.pattern_len
-                - (pattern_indices.first().unwrap_or(&0usize)
-                    - pattern_indices.last().unwrap_or(&0usize)
-                    + 1);
-
-            if new_diff > idx_abs_diff {
-                return new_diff;
-            }
-
             match self
                 .inner
                 .choice
                 .char_indices()
                 .rev()
                 .skip(skip)
+                .take_while(|(idx, _c_char)| {
+                    let new_diff = self.inner.pattern_len
+                        - (pattern_indices.first().unwrap_or(&0usize) - idx + 1);
+                    new_diff < idx_abs_diff
+                })
                 .find_map(|(idx, c_char)| {
                     if self.char_equal(p_char, c_char) {
                         skip = idx;
@@ -320,11 +319,9 @@ impl<'a> CharMatching<'a> {
                     None
                 }) {
                 Some(char_idx) => pattern_indices.push(char_idx),
-                None => return new_diff,
+                None => return,
             }
         }
-
-        new_diff
     }
 
     #[inline]
@@ -374,22 +371,13 @@ impl<'a> ByteMatching<'a> {
             }
         }
     }
-    fn reverse(&self, pattern_indices: &mut Vec<usize>, idx_abs_diff: usize) -> usize {
+    fn reverse(&self, pattern_indices: &mut Vec<usize>, idx_abs_diff: usize) {
         let mut skip = 0usize;
 
         let mut new_diff = 0usize;
 
         for p_char in self.inner.pattern.bytes().rev() {
             // first is greater than last in reverse context
-            new_diff = self.inner.pattern_len
-                - (pattern_indices.first().unwrap_or(&0usize)
-                    - pattern_indices.last().unwrap_or(&0usize)
-                    + 1);
-
-            if new_diff > idx_abs_diff {
-                return new_diff;
-            }
-
             match self
                 .inner
                 .choice
@@ -397,6 +385,11 @@ impl<'a> ByteMatching<'a> {
                 .enumerate()
                 .rev()
                 .skip(skip)
+                .take_while(|(idx, c_char)| {
+                    let new_diff = self.inner.pattern_len
+                        - (pattern_indices.first().unwrap_or(&0usize) - idx + 1);
+                    new_diff < idx_abs_diff
+                })
                 .find_map(|(idx, c_char)| {
                     if self.byte_equal(p_char, c_char) {
                         skip = idx;
@@ -406,10 +399,9 @@ impl<'a> ByteMatching<'a> {
                     None
                 }) {
                 Some(char_idx) => pattern_indices.push(char_idx),
-                None => return new_diff,
+                None => return,
             }
         }
-        new_diff
     }
 
     #[inline]
