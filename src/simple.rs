@@ -3,7 +3,7 @@ use crate::IndexType;
 use crate::ScoreType;
 use std::cmp::Ordering;
 
-const BASELINE: i64 = 200_000;
+const BASELINE: i64 = 65_535;
 
 impl FuzzyMatcher for SimpleMatcher {
     fn fuzzy_indices(&self, choice: &str, pattern: &str) -> Option<(ScoreType, Vec<IndexType>)> {
@@ -128,16 +128,14 @@ impl<'a> SimpleMatch<'a> {
         let closeness = end_idx - start_idx;
 
         let closeness_score = if closeness == 0 {
-            10_000_000
-        } else if closeness >= 4 {
-            0
+            524_280
         } else {
-            1_000_000 / closeness
+            131_070 - (closeness.pow(2) * (131_070 / self.pattern_len))
         };
 
         let pat_contains_non_alpha = self.pattern.contains(|c: char| !c.is_ascii_alphabetic());
 
-        let first_alpha_char = if !pat_contains_non_alpha {
+        let first_alpha_char = if pat_contains_non_alpha {
             self.choice
                 .find(|c: char| c.is_ascii_alphabetic())
                 .unwrap_or(start_idx)
@@ -146,30 +144,33 @@ impl<'a> SimpleMatch<'a> {
         };
 
         let start_idx_bonus = if first_alpha_char == 0 {
-            20_000
+            10_000
         } else {
-            20_000 / start_idx
+            10_000 / start_idx.pow(2)
         };
 
         let first_letter_case_bonus = if self.first_letter_uppercase(start_idx) {
-            20_000
+            10_000
         } else {
             0
         };
 
         let word_boundary_bonus = if self.word_boundary(matches) {
-            20_000
+            10_000
         } else {
             0
         };
 
-        let follows_special_char_bonus = self.follows_special_char(matches) * 1_000;
+        let follows_special_char_bonus = self.follows_special_char(matches) * 5_000;
+
+        let choice_size_neg_score = self.choice_len * 500;
 
         (closeness_score
             + start_idx_bonus
             + first_letter_case_bonus
             + follows_special_char_bonus
-            + word_boundary_bonus) as i64
+            + word_boundary_bonus
+            - choice_size_neg_score) as i64
     }
 
     fn word_boundary(&self, matches: &[usize]) -> bool {
@@ -224,7 +225,7 @@ impl<'a> SimpleMatch<'a> {
             CharMatching::from(self).reverse(&mut pattern_indices, idx_abs_diff)
         };
 
-        if idx_abs_diff > new_diff {
+        if new_diff < idx_abs_diff {
             pattern_indices.reverse();
             *matches = pattern_indices;
         }
