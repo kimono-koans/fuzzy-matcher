@@ -129,7 +129,7 @@ impl<'a> SimpleMatch<'a> {
 
         let closeness_score = if closeness == 0 {
             1_048_576
-        } else if closeness == 0 {
+        } else if closeness == 1 {
             524_288
         } else {
             131_072 - (closeness.pow(2) * (131_072 / self.pattern_len))
