@@ -83,7 +83,8 @@ impl<'a> SimpleMatch<'a> {
         let mut choice_len = choice.len();
         let mut pattern_len = pattern.len();
 
-        let is_ascii = choice.is_ascii() && pattern.is_ascii();
+        let is_ascii = false;
+        //choice.is_ascii() && pattern.is_ascii();
         if !is_ascii {
             choice_len = choice.chars().count();
             pattern_len = pattern.chars().count();
@@ -132,7 +133,7 @@ impl<'a> SimpleMatch<'a> {
         } else if closeness == 1 {
             524_288
         } else if closeness <= 6 {
-            262144 - (closeness.pow(2) * (262144 / self.pattern_len))
+            262144 - (closeness.pow(2) * (262144 / (self.pattern_len + 1)))
         } else {
             0
         };
@@ -160,7 +161,7 @@ impl<'a> SimpleMatch<'a> {
         let start_idx_bonus = if first_alpha_char == 0 {
             32_768
         } else if first_alpha_char <= 4 {
-            16_384 / start_idx
+            16_384 / (start_idx + 1)
         } else {
             0
         };
