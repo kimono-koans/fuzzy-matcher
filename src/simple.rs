@@ -137,11 +137,22 @@ impl<'a> SimpleMatch<'a> {
             0
         };
 
-        let pat_contains_non_alpha = self.pattern.contains(|c: char| !c.is_ascii_alphabetic());
+        let pat_contains_non_alpha = self
+            .pattern
+            .bytes()
+            .any(|c_char| !c_char.is_ascii_alphabetic());
 
         let first_alpha_char = if pat_contains_non_alpha {
             self.choice
-                .find(|c: char| c.is_ascii_alphabetic())
+                .bytes()
+                .enumerate()
+                .find_map(|(idx, c_char)| {
+                    if c_char.is_ascii_alphabetic() {
+                        return Some(idx);
+                    }
+
+                    None
+                })
                 .unwrap_or(start_idx)
         } else {
             start_idx
