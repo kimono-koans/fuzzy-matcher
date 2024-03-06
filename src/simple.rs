@@ -296,7 +296,6 @@ impl<'a> CharMatching<'a> {
         let mut choice_iter = self.inner.choice.char_indices().rev();
 
         for p_char in self.inner.pattern.chars().rev() {
-            // first is greater than last in reverse context
             match choice_iter.find_map(|(idx, c_char)| {
                 if self.char_equal(p_char, c_char) {
                     return Some(idx);
@@ -314,7 +313,7 @@ impl<'a> CharMatching<'a> {
     #[inline]
     fn char_equal(&self, a: char, b: char) -> bool {
         if !self.inner.case_sensitive {
-            if !a.is_ascii() && !b.is_ascii() {
+            if !self.inner.is_ascii {
                 return a.to_lowercase().cmp(b.to_lowercase()) == Ordering::Equal;
             }
             return a.eq_ignore_ascii_case(&b);
@@ -340,7 +339,7 @@ impl<'a> ByteMatching<'a> {
 
         for p_char in self.inner.pattern.bytes() {
             match choice_iter.find_map(|(idx, c_char)| {
-                if self.byte_equal(p_char, c_char) {
+                if self.byte_equal(p_char, c_char) && self.inner.choice.is_char_boundary(idx) {
                     return Some(idx);
                 }
 
@@ -355,9 +354,8 @@ impl<'a> ByteMatching<'a> {
         let mut choice_iter = self.inner.choice.bytes().enumerate().rev();
 
         for p_char in self.inner.pattern.bytes().rev() {
-            // first is greater than last in reverse context
             match choice_iter.find_map(|(idx, c_char)| {
-                if self.byte_equal(p_char, c_char) {
+                if self.byte_equal(p_char, c_char) && self.inner.choice.is_char_boundary(idx) {
                     return Some(idx);
                 }
 
