@@ -3,7 +3,7 @@ use crate::IndexType;
 use crate::ScoreType;
 use std::cmp::Ordering;
 
-const BASELINE: i64 = 65_536;
+const BASELINE: i64 = 0i64;
 
 impl FuzzyMatcher for SimpleMatcher {
     fn fuzzy_indices(&self, choice: &str, pattern: &str) -> Option<(ScoreType, Vec<IndexType>)> {
@@ -130,8 +130,6 @@ impl<'a> SimpleMatch<'a> {
 
         let closeness_score = if closeness == 0 {
             1_048_576
-        } else if closeness == 1 {
-            524_288
         } else if closeness <= 6 {
             524_288 / closeness.pow(2)
         } else {
@@ -183,7 +181,8 @@ impl<'a> SimpleMatch<'a> {
             + first_letter_case_bonus
             + follows_special_char_bonus
             + word_boundary_bonus
-            - len_neg) as i64
+            - len_neg
+            - 65_536) as i64
     }
 
     fn forward_matches(&self) -> Option<Vec<usize>> {
