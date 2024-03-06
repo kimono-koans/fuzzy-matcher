@@ -56,7 +56,7 @@ impl SimpleMatcher {
     }
 
     fn contains_upper(&self, string: &str) -> bool {
-        string.bytes().any(|ch| ch.is_ascii_uppercase())
+        string.chars().any(|ch| ch.is_ascii_uppercase())
     }
 
     fn is_case_sensitive(&self, pattern: &str) -> bool {
@@ -139,13 +139,12 @@ impl<'a> SimpleMatch<'a> {
 
         let pat_contains_non_alpha = self
             .pattern
-            .bytes()
+            .chars()
             .any(|c_char| !c_char.is_ascii_alphabetic());
 
         let first_alpha_char = if pat_contains_non_alpha {
             self.choice
-                .bytes()
-                .enumerate()
+                .char_indices()
                 .find_map(|(idx, c_char)| {
                     if c_char.is_ascii_alphabetic() {
                         return Some(idx);
@@ -238,9 +237,9 @@ impl<'a> SimpleMatch<'a> {
                 let previous = *idx - 1;
 
                 self.choice
-                    .bytes()
+                    .chars()
                     .nth(previous)
-                    .map(|b| b == b'\t' || b == b' ')
+                    .map(|b| b == '\t' || b == ' ')
                     .unwrap_or(false)
             })
             .count()
@@ -257,19 +256,20 @@ impl<'a> SimpleMatch<'a> {
                     return None;
                 }
 
-                self.choice.bytes().nth(previous).map(|b| {
-                    b == b'\t' || b == b'/' || b == b':' || b == b'-' || b == b'_' || b == b' '
-                })
+                self.choice
+                    .chars()
+                    .nth(previous)
+                    .map(|b| b == '\t' || b == '/' || b == ':' || b == '-' || b == '_' || b == ' ')
             })
             .count()
     }
 
     #[inline]
     fn first_letter_uppercase(&self, start_idx: usize) -> bool {
-        self.pattern.bytes().nth(0).unwrap().is_ascii_uppercase()
+        self.pattern.chars().nth(0).unwrap().is_ascii_uppercase()
             && self
                 .choice
-                .bytes()
+                .chars()
                 .nth(start_idx)
                 .unwrap()
                 .is_ascii_uppercase()
