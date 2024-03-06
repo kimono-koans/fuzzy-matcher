@@ -133,7 +133,7 @@ impl<'a> SimpleMatch<'a> {
         } else if closeness == 1 {
             524_288
         } else if closeness <= 6 {
-            262144 - (closeness.pow(2) * (262144 / (self.pattern_len + 1)))
+            524_288 / closeness.pow(2)
         } else {
             0
         };
@@ -161,7 +161,7 @@ impl<'a> SimpleMatch<'a> {
         let start_idx_bonus = if first_alpha_char == 0 {
             32_768
         } else if first_alpha_char <= 4 {
-            16_384 / (start_idx + 1)
+            32_768 / first_alpha_char.pow(2)
         } else {
             0
         };
