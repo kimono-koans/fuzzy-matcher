@@ -413,4 +413,13 @@ mod tests {
             matcher.fuzzy_indices("bullsh shit\n", "shit").unwrap().1
         );
     }
+
+    #[test]
+    fn test_simple_double_reverse() {
+        let matcher = SimpleMatcher::default();
+        assert_eq!(
+            vec![10, 11, 12, 13],
+            matcher.fuzzy_indices("bullsh it shit\n", "shit").unwrap().1
+        );
+    }
 }
