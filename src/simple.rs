@@ -136,7 +136,7 @@ impl<'a> SimpleMatch<'a> {
 
         let closeness_score = if closeness == 0 {
             1_048_576
-        } else if closeness <= 6 {
+        } else if closeness <= 8 {
             524_288 / closeness.pow(2)
         } else {
             0
