@@ -110,7 +110,14 @@ impl<'a> SimpleMatch<'a> {
 
         let mut matches = self.forward_matches()?;
 
-        self.reverse_matches(&mut matches);
+        let start_idx = *matches.first().unwrap_or(&0);
+        let end_idx = *matches.last().unwrap_or(&0);
+
+        let closeness = self.pattern_len - (end_idx - start_idx + 1);
+
+        if closeness != 0 {
+            self.reverse_matches(&mut matches);
+        }
 
         let score = self.score(&matches);
 
@@ -315,22 +322,24 @@ impl<'a> CharMatching<'a> {
             }
         }
     }
+
     fn reverse(&self, pattern_indices: &mut Vec<usize>) {
-        let mut choice_iter = self.inner.choice.char_indices().rev();
+        if self.inner.case_sensitive {
+            self.inner.choice.rfind(self.inner.pattern).map(|idx| {
+                (idx..idx + self.inner.pattern_len)
+                    .into_iter()
+                    .for_each(|idx| pattern_indices.push(idx))
+            });
+        } else {
+            let c_upper = self.inner.choice.to_uppercase();
+            let p_upper = self.inner.pattern.to_uppercase();
 
-        for p_char in self.inner.pattern.chars().rev() {
-            match choice_iter.find_map(|(idx, c_char)| {
-                if self.char_equal(p_char, c_char) {
-                    return Some(idx);
-                }
-
-                None
-            }) {
-                Some(char_idx) => pattern_indices.push(char_idx),
-                None => return,
-            }
+            let _ = &c_upper.as_str().rfind(p_upper.as_str()).map(|idx| {
+                (idx..idx + self.inner.pattern_len)
+                    .into_iter()
+                    .for_each(|idx| pattern_indices.push(idx))
+            });
         }
-        pattern_indices.reverse()
     }
 
     #[inline]
@@ -373,22 +382,24 @@ impl<'a> ByteMatching<'a> {
             }
         }
     }
+
     fn reverse(&self, pattern_indices: &mut Vec<usize>) {
-        let mut choice_iter = self.inner.choice.bytes().enumerate().rev();
+        if self.inner.case_sensitive {
+            self.inner.choice.rfind(self.inner.pattern).map(|idx| {
+                (idx..idx + self.inner.pattern_len)
+                    .into_iter()
+                    .for_each(|idx| pattern_indices.push(idx))
+            });
+        } else {
+            let c_upper = self.inner.choice.to_ascii_uppercase();
+            let p_upper = self.inner.pattern.to_ascii_uppercase();
 
-        for p_char in self.inner.pattern.bytes().rev() {
-            match choice_iter.find_map(|(idx, c_char)| {
-                if self.byte_equal(p_char, c_char) && self.inner.choice.is_char_boundary(idx) {
-                    return Some(idx);
-                }
-
-                None
-            }) {
-                Some(char_idx) => pattern_indices.push(char_idx),
-                None => return,
-            }
+            let _ = &c_upper.as_str().rfind(p_upper.as_str()).map(|idx| {
+                (idx..idx + self.inner.pattern_len)
+                    .into_iter()
+                    .for_each(|idx| pattern_indices.push(idx))
+            });
         }
-        pattern_indices.reverse()
     }
 
     #[inline]
@@ -423,3 +434,39 @@ mod tests {
         );
     }
 }
+
+// fn reverse(&self, pattern_indices: &mut Vec<usize>) {
+//     let mut choice_iter = self.inner.choice.char_indices().rev();
+
+//     for p_char in self.inner.pattern.chars().rev() {
+//         match choice_iter.find_map(|(idx, c_char)| {
+//             if self.char_equal(p_char, c_char) {
+//                 return Some(idx);
+//             }
+
+//             None
+//         }) {
+//             Some(char_idx) => pattern_indices.push(char_idx),
+//             None => return,
+//         }
+//     }
+//     pattern_indices.reverse()
+// }
+
+// fn reverse(&self, pattern_indices: &mut Vec<usize>) {
+//     let mut choice_iter = self.inner.choice.bytes().enumerate().rev();
+
+//     for p_char in self.inner.pattern.bytes().rev() {
+//         match choice_iter.find_map(|(idx, c_char)| {
+//             if self.byte_equal(p_char, c_char) && self.inner.choice.is_char_boundary(idx) {
+//                 return Some(idx);
+//             }
+
+//             None
+//         }) {
+//             Some(char_idx) => pattern_indices.push(char_idx),
+//             None => return,
+//         }
+//     }
+//     pattern_indices.reverse()
+// }
