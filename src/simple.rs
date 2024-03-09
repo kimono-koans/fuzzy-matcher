@@ -114,13 +114,14 @@ impl<'a> SimpleMatch<'a> {
             return None;
         }
 
-        let start_idx = *matches.first().unwrap_or(&0);
-        let end_idx = *matches.last().unwrap_or(&0);
-
-        let closeness = self.pattern_len - (end_idx - start_idx + 1);
+        let closeness = self.closeness(&matches);
 
         if closeness != 0 {
             self.reverse_matches(&mut matches);
+        }
+
+        if self.pattern_len > 3 && Self::none_consecutive(&matches) {
+            return None;
         }
 
         let score = self.score(&matches);
@@ -132,11 +133,26 @@ impl<'a> SimpleMatch<'a> {
         None
     }
 
-    fn score(&self, matches: &[usize]) -> i64 {
+    fn closeness(&self, matches: &[usize]) -> usize {
         let start_idx = *matches.first().unwrap_or(&0);
         let end_idx = *matches.last().unwrap_or(&0);
 
-        let closeness = self.pattern_len - (end_idx - start_idx + 1);
+        self.pattern_len.abs_diff(end_idx.abs_diff(start_idx) + 1)
+    }
+
+    fn none_consecutive(matches: &[usize]) -> bool {
+        matches.iter().enumerate().all(|(idx, val)| {
+            let next_proposed = Some(val + 1);
+            let next_actual = matches.get(idx + 1).copied();
+
+            next_actual != next_proposed
+        })
+    }
+
+    fn score(&self, matches: &[usize]) -> i64 {
+        let start_idx = *matches.first().unwrap_or(&0);
+
+        let closeness = self.closeness(matches);
 
         let closeness_score = if closeness == 0 {
             1_048_576
@@ -424,8 +440,10 @@ mod tests {
     fn test_simple_reverse() {
         let matcher = SimpleMatcher::default();
         assert_eq!(
-            vec![7, 8, 9, 10],
-            matcher.fuzzy_indices("bullsh shit\n", "shit").unwrap().1
+            Some(vec![7, 8, 9, 10]),
+            matcher
+                .fuzzy_indices("bullsh shit\n", "shit")
+                .map(|inner| inner.1)
         );
     }
 
@@ -433,9 +451,17 @@ mod tests {
     fn test_simple_double_reverse() {
         let matcher = SimpleMatcher::default();
         assert_eq!(
-            vec![10, 11, 12, 13],
-            matcher.fuzzy_indices("bullsh it shit\n", "shit").unwrap().1
+            Some(vec![10, 11, 12, 13]),
+            matcher
+                .fuzzy_indices("bullsh it shit\n", "shit")
+                .map(|inner| inner.1)
         );
+    }
+
+    #[test]
+    fn test_simple_non_consecutive() {
+        let matcher = SimpleMatcher::default();
+        assert_eq!(None, matcher.fuzzy_indices("bsuhlilt\n", "shit"));
     }
 }
 
@@ -443,7 +469,7 @@ mod tests {
 //     let mut choice_iter = self.inner.choice.char_indices().rev();
 
 //     for p_char in self.inner.pattern.chars().rev() {
-//         match choice_iter.find_map(|(idx, c_char)| {
+//         match choice_iter.find_map(|(idx, c_char)| {3
 //             if self.char_equal(p_char, c_char) {
 //                 return Some(idx);
 //             }
