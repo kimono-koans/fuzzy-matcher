@@ -110,6 +110,10 @@ impl<'a> SimpleMatch<'a> {
 
         let mut matches = self.forward_matches()?;
 
+        if matches.len() == self.pattern_len {
+            return None;
+        }
+
         let start_idx = *matches.first().unwrap_or(&0);
         let end_idx = *matches.last().unwrap_or(&0);
 
