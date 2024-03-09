@@ -110,7 +110,7 @@ impl<'a> SimpleMatch<'a> {
 
         let mut matches = self.forward_matches()?;
 
-        if matches.len() == self.pattern_len {
+        if matches.len() < self.pattern_len {
             return None;
         }
 
