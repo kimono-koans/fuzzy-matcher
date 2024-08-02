@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::cmp::max;
 use std::fmt::Formatter;
 
-use thread_local::CachedThreadLocal;
+use thread_local::ThreadLocal;
 
 use crate::skim::Movement::{Match, Skip};
 use crate::util::{char_equal, cheap_matches};
@@ -603,9 +603,9 @@ pub struct SkimMatcherV2 {
     case: CaseMatching,
     use_cache: bool,
 
-    m_cache: CachedThreadLocal<RefCell<Vec<MatrixCell>>>,
-    c_cache: CachedThreadLocal<RefCell<Vec<char>>>, // vector to store the characters of choice
-    p_cache: CachedThreadLocal<RefCell<Vec<char>>>, // vector to store the characters of pattern
+    m_cache: ThreadLocal<RefCell<Vec<MatrixCell>>>,
+    c_cache: ThreadLocal<RefCell<Vec<char>>>, // vector to store the characters of choice
+    p_cache: ThreadLocal<RefCell<Vec<char>>>, // vector to store the characters of pattern
 }
 
 impl Default for SkimMatcherV2 {
@@ -617,9 +617,9 @@ impl Default for SkimMatcherV2 {
             case: CaseMatching::Smart,
             use_cache: true,
 
-            m_cache: CachedThreadLocal::new(),
-            c_cache: CachedThreadLocal::new(),
-            p_cache: CachedThreadLocal::new(),
+            m_cache: ThreadLocal::new(),
+            c_cache: ThreadLocal::new(),
+            p_cache: ThreadLocal::new(),
         }
     }
 }
