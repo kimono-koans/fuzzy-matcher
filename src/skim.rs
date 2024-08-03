@@ -830,18 +830,9 @@ impl SkimMatcherV2 {
         let compressed = !with_pos;
 
         // initialize the score matrix
-        let mut m = self
-            .m_cache
-            .get_or(|| RefCell::new(Vec::new()))
-            .borrow_mut();
-        let mut choice_chars = self
-            .c_cache
-            .get_or(|| RefCell::new(Vec::new()))
-            .borrow_mut();
-        let mut pattern_chars = self
-            .p_cache
-            .get_or(|| RefCell::new(Vec::new()))
-            .borrow_mut();
+        let mut m = self.m_cache.get_or_default().borrow_mut();
+        let mut choice_chars = self.c_cache.get_or_default().borrow_mut();
+        let mut pattern_chars = self.p_cache.get_or_default().borrow_mut();
 
         *choice_chars = choice.chars().collect();
 

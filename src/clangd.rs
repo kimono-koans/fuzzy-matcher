@@ -98,14 +98,8 @@ impl FuzzyMatcher for ClangdMatcher {
     fn fuzzy_indices(&self, choice: &str, pattern: &str) -> Option<(ScoreType, Vec<IndexType>)> {
         let case_sensitive = self.is_case_sensitive(pattern);
 
-        let mut choice_chars = self
-            .c_cache
-            .get_or(|| RefCell::new(Vec::new()))
-            .borrow_mut();
-        let mut pattern_chars = self
-            .p_cache
-            .get_or(|| RefCell::new(Vec::new()))
-            .borrow_mut();
+        let mut choice_chars = self.c_cache.get_or_default().borrow_mut();
+        let mut pattern_chars = self.p_cache.get_or_default().borrow_mut();
 
         *choice_chars = choice.chars().collect();
 
@@ -160,14 +154,8 @@ impl FuzzyMatcher for ClangdMatcher {
     fn fuzzy_match(&self, choice: &str, pattern: &str) -> Option<ScoreType> {
         let case_sensitive = self.is_case_sensitive(pattern);
 
-        let mut choice_chars = self
-            .c_cache
-            .get_or(|| RefCell::new(Vec::new()))
-            .borrow_mut();
-        let mut pattern_chars = self
-            .p_cache
-            .get_or(|| RefCell::new(Vec::new()))
-            .borrow_mut();
+        let mut choice_chars = self.c_cache.get_or_default().borrow_mut();
+        let mut pattern_chars = self.p_cache.get_or_default().borrow_mut();
 
         *choice_chars = choice.chars().collect();
 
