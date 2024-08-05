@@ -1,7 +1,10 @@
 [package]
 name = "fuzzy-muff"
-version = "0.3.24"
-authors = ["Jinzhou Zhang <lotabout@gmail.com>"]
+version = "0.3.25"
+authors = [
+    "Jinzhou Zhang <lotabout@gmail.com>",
+    "Robert Swinford <robert.swinford<at>gmail.com>",
+]
 description = "Fuzzy Matching Library"
 documentation = "https://docs.rs/fuzzy-matcher"
 homepage = "https://github.com/lotabout/fuzzy-matcher"
@@ -20,7 +23,7 @@ default = []
 compact = []
 
 [dependencies]
-thread_local = "1.1.8"
+thread_local = { version = "1.1.8", default-features = false }
 
 [dev-dependencies]
-termion = "4.0.2"
+termion = { version = "4.0.2", default-features = false }
