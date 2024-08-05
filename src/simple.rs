@@ -56,7 +56,7 @@ impl SimpleMatcher {
     }
 
     fn contains_upper(&self, string: &str) -> bool {
-        string.bytes().any(|b| b.is_ascii_uppercase())
+        string.as_bytes().iter().any(|b| b.is_ascii_uppercase())
     }
 
     fn is_case_sensitive(&self, pattern: &str) -> bool {
@@ -164,12 +164,14 @@ impl<'a> SimpleMatch<'a> {
 
         let pat_contains_non_alpha = self
             .pattern
-            .bytes()
+            .as_bytes()
+            .iter()
             .any(|c_char| !c_char.is_ascii_alphabetic());
 
         let first_alpha_char = if pat_contains_non_alpha {
             self.choice
-                .bytes()
+                .as_bytes()
+                .iter()
                 .enumerate()
                 .find_map(|(idx, c_char)| {
                     if c_char.is_ascii_alphabetic() {
@@ -267,10 +269,11 @@ impl<'a> SimpleMatch<'a> {
                 let previous = *idx - 1;
 
                 self.choice
-                    .bytes()
+                    .as_bytes()
+                    .iter()
                     .enumerate()
                     .nth(previous)
-                    .map(|(idx, b)| self.choice.is_char_boundary(idx) && b == b'\t' || b == b' ')
+                    .map(|(idx, b)| self.choice.is_char_boundary(idx) && b == &b'\t' || b == &b' ')
                     .unwrap_or(false)
             })
             .count()
@@ -288,16 +291,17 @@ impl<'a> SimpleMatch<'a> {
                 }
 
                 self.choice
-                    .bytes()
+                    .as_bytes()
+                    .iter()
                     .enumerate()
                     .nth(previous)
                     .map(|(idx, b)| {
-                        self.choice.is_char_boundary(idx) && b == b'\t'
-                            || b == b'/'
-                            || b == b':'
-                            || b == b'-'
-                            || b == b'_'
-                            || b == b' '
+                        self.choice.is_char_boundary(idx) && b == &b'\t'
+                            || b == &b'/'
+                            || b == &b':'
+                            || b == &b'-'
+                            || b == &b'_'
+                            || b == &b' '
                     })
             })
             .count()
@@ -305,10 +309,16 @@ impl<'a> SimpleMatch<'a> {
 
     #[inline]
     fn first_letter_uppercase(&self, start_idx: usize) -> bool {
-        self.pattern.bytes().nth(0).unwrap().is_ascii_uppercase()
+        self.pattern
+            .as_bytes()
+            .iter()
+            .nth(0)
+            .unwrap()
+            .is_ascii_uppercase()
             && self
                 .choice
-                .bytes()
+                .as_bytes()
+                .iter()
                 .nth(start_idx)
                 .unwrap()
                 .is_ascii_uppercase()
@@ -387,9 +397,9 @@ impl<'a> From<&'a SimpleMatch<'a>> for ByteMatching<'a> {
 
 impl<'a> ByteMatching<'a> {
     fn forward(&self, pattern_indices: &mut Vec<usize>) {
-        let mut choice_iter = self.inner.choice.bytes().enumerate();
+        let mut choice_iter = self.inner.choice.as_bytes().iter().enumerate();
 
-        for p_char in self.inner.pattern.bytes() {
+        for p_char in self.inner.pattern.as_bytes().iter() {
             match choice_iter.find_map(|(idx, c_char)| {
                 if self.byte_equal(p_char, c_char) && self.inner.choice.is_char_boundary(idx) {
                     return Some(idx);
@@ -423,7 +433,7 @@ impl<'a> ByteMatching<'a> {
     }
 
     #[inline]
-    fn byte_equal(&self, a: u8, b: u8) -> bool {
+    fn byte_equal(&self, a: &u8, b: &u8) -> bool {
         if !self.inner.case_sensitive {
             return a.eq_ignore_ascii_case(&b);
         }
@@ -484,9 +494,9 @@ mod tests {
 // }
 
 // fn reverse(&self, pattern_indices: &mut Vec<usize>) {
-//     let mut choice_iter = self.inner.choice.bytes().enumerate().rev();
+//     let mut choice_iter = self.inner.choice.as_bytes().iter().enumerate().rev();
 
-//     for p_char in self.inner.pattern.bytes().rev() {
+//     for p_char in self.inner.pattern.as_bytes().iter().rev() {
 //         match choice_iter.find_map(|(idx, c_char)| {
 //             if self.byte_equal(p_char, c_char) && self.inner.choice.is_char_boundary(idx) {
 //                 return Some(idx);
