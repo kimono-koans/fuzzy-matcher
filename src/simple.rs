@@ -1,7 +1,6 @@
 use crate::FuzzyMatcher;
 use crate::IndexType;
 use crate::ScoreType;
-use std::cmp::Ordering;
 
 const BASELINE: i64 = 0i64;
 
@@ -217,11 +216,7 @@ impl<'a> SimpleMatch<'a> {
     fn forward_matches(&self) -> Option<Vec<usize>> {
         let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
 
-        if self.is_ascii {
-            ByteMatching::from(self).forward(&mut pattern_indices)
-        } else {
-            CharMatching::from(self).forward(&mut pattern_indices)
-        }
+        self.forward(&mut pattern_indices);
 
         if pattern_indices.len() != self.pattern_len {
             return None;
@@ -242,11 +237,7 @@ impl<'a> SimpleMatch<'a> {
 
         let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
 
-        if self.is_ascii {
-            ByteMatching::from(self).reverse(&mut pattern_indices)
-        } else {
-            CharMatching::from(self).reverse(&mut pattern_indices)
-        };
+        self.reverse(&mut pattern_indices);
 
         let reverse_start_idx = *pattern_indices.first().unwrap_or(&0);
         let reverse_end_idx = *pattern_indices.last().unwrap_or(&0);
@@ -325,47 +316,61 @@ impl<'a> SimpleMatch<'a> {
     }
 }
 
-struct CharMatching<'a> {
-    inner: &'a SimpleMatch<'a>,
+pub trait Matching {
+    fn forward(&self, pattern_indices: &mut Vec<usize>);
+    fn reverse(&self, pattern_indices: &mut Vec<usize>);
+    fn char_equal(&self, a: &char, b: &char) -> bool;
+    fn byte_equal(&self, a: &u8, b: &u8) -> bool;
 }
 
-impl<'a> From<&'a SimpleMatch<'a>> for CharMatching<'a> {
-    fn from(value: &'a SimpleMatch) -> Self {
-        Self { inner: value }
-    }
-}
-
-impl<'a> CharMatching<'a> {
+impl<'a> Matching for SimpleMatch<'a> {
     fn forward(&self, pattern_indices: &mut Vec<usize>) {
-        let mut choice_iter = self.inner.choice.char_indices();
+        if self.is_ascii {
+            let mut choice_iter = self.choice.as_bytes().iter().enumerate();
 
-        for p_char in self.inner.pattern.chars() {
-            match choice_iter.find_map(|(idx, c_char)| {
-                if self.char_equal(p_char, c_char) {
-                    return Some(idx);
+            for p_char in self.pattern.as_bytes().iter() {
+                match choice_iter.find_map(|(idx, c_char)| {
+                    if self.byte_equal(&p_char, &c_char) {
+                        return Some(idx);
+                    }
+
+                    None
+                }) {
+                    Some(char_idx) => pattern_indices.push(char_idx),
+                    None => return,
                 }
+            }
+        } else {
+            let mut choice_iter = self.choice.char_indices();
 
-                None
-            }) {
-                Some(char_idx) => pattern_indices.push(char_idx),
-                None => return,
+            for p_char in self.pattern.chars() {
+                match choice_iter.find_map(|(idx, c_char)| {
+                    if self.char_equal(&p_char, &c_char) {
+                        return Some(idx);
+                    }
+
+                    None
+                }) {
+                    Some(char_idx) => pattern_indices.push(char_idx),
+                    None => return,
+                }
             }
         }
     }
 
     fn reverse(&self, pattern_indices: &mut Vec<usize>) {
-        if self.inner.case_sensitive {
-            self.inner.choice.rfind(self.inner.pattern).map(|idx| {
-                (idx..idx + self.inner.pattern_len)
+        if self.case_sensitive {
+            self.choice.rfind(self.pattern).map(|idx| {
+                (idx..idx + self.pattern_len)
                     .into_iter()
                     .for_each(|idx| pattern_indices.push(idx))
             });
         } else {
-            let c_upper = self.inner.choice.to_uppercase();
-            let p_upper = self.inner.pattern.to_uppercase();
+            let c_upper = self.choice.to_uppercase();
+            let p_upper = self.pattern.to_uppercase();
 
             let _ = &c_upper.as_str().rfind(p_upper.as_str()).map(|idx| {
-                (idx..idx + self.inner.pattern_len)
+                (idx..idx + self.pattern_len)
                     .into_iter()
                     .for_each(|idx| pattern_indices.push(idx))
             });
@@ -373,68 +378,17 @@ impl<'a> CharMatching<'a> {
     }
 
     #[inline]
-    fn char_equal(&self, a: char, b: char) -> bool {
-        if !self.inner.case_sensitive {
-            if !self.inner.is_ascii {
-                return a.to_lowercase().cmp(b.to_lowercase()) == Ordering::Equal;
-            }
-            return a.eq_ignore_ascii_case(&b);
+    fn char_equal(&self, a: &char, b: &char) -> bool {
+        if !self.case_sensitive {
+            return a.to_lowercase().eq(b.to_lowercase());
         }
 
         a == b
     }
-}
-
-struct ByteMatching<'a> {
-    inner: &'a SimpleMatch<'a>,
-}
-
-impl<'a> From<&'a SimpleMatch<'a>> for ByteMatching<'a> {
-    fn from(value: &'a SimpleMatch) -> Self {
-        Self { inner: value }
-    }
-}
-
-impl<'a> ByteMatching<'a> {
-    fn forward(&self, pattern_indices: &mut Vec<usize>) {
-        let mut choice_iter = self.inner.choice.as_bytes().iter().enumerate();
-
-        for p_char in self.inner.pattern.as_bytes().iter() {
-            match choice_iter.find_map(|(idx, c_char)| {
-                if self.byte_equal(p_char, c_char) && self.inner.choice.is_char_boundary(idx) {
-                    return Some(idx);
-                }
-
-                None
-            }) {
-                Some(char_idx) => pattern_indices.push(char_idx),
-                None => return,
-            }
-        }
-    }
-
-    fn reverse(&self, pattern_indices: &mut Vec<usize>) {
-        if self.inner.case_sensitive {
-            self.inner.choice.rfind(self.inner.pattern).map(|idx| {
-                (idx..idx + self.inner.pattern_len)
-                    .into_iter()
-                    .for_each(|idx| pattern_indices.push(idx))
-            });
-        } else {
-            let c_upper = self.inner.choice.to_ascii_uppercase();
-            let p_upper = self.inner.pattern.to_ascii_uppercase();
-
-            let _ = &c_upper.as_str().rfind(p_upper.as_str()).map(|idx| {
-                (idx..idx + self.inner.pattern_len)
-                    .into_iter()
-                    .for_each(|idx| pattern_indices.push(idx))
-            });
-        }
-    }
 
     #[inline]
     fn byte_equal(&self, a: &u8, b: &u8) -> bool {
-        if !self.inner.case_sensitive {
+        if !self.case_sensitive {
             return a.eq_ignore_ascii_case(&b);
         }
 
