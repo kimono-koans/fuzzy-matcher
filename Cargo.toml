@@ -1,6 +1,6 @@
 [package]
 name = "fuzzy-muff"
-version = "0.3.26"
+version = "0.3.27"
 authors = [
     "Jinzhou Zhang <lotabout@gmail.com>",
     "Robert Swinford <robert.swinford <...at...> gmail.com>",
@@ -24,6 +24,9 @@ compact = []
 
 [dependencies]
 thread_local = { version = "1.1.8", default-features = false }
+
+[patch.crates-io]
+thread_local = { git = 'https://github.com/Amanieu/thread_local-rs' }
 
 [dev-dependencies]
 termion = { version = "4.0.2", default-features = false }
