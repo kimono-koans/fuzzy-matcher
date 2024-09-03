@@ -1,6 +1,6 @@
 [package]
 name = "fuzzy-muff"
-version = "0.3.29"
+version = "0.4.0"
 authors = [
     "Jinzhou Zhang <lotabout@gmail.com>",
     "Robert Swinford <robert.swinford <...at...> gmail.com>",
@@ -12,7 +12,7 @@ repository = "https://github.com/lotabout/fuzzy-matcher"
 readme = "README.md"
 keywords = ["fuzzy", "match", "text", "search"]
 license = "MIT"
-edition = "2018"
+edition = "2021"
 
 [lib]
 name = "fuzzy_matcher"
