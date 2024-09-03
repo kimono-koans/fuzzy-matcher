@@ -109,7 +109,7 @@ impl<'a> SimpleMatch<'a> {
 
         let mut matches = self.forward_matches()?;
 
-        if matches.len() < self.pattern_len {
+        if matches.len() <= ((self.pattern_len / 4) * 3) {
             return None;
         }
 
@@ -141,10 +141,10 @@ impl<'a> SimpleMatch<'a> {
 
     fn none_consecutive(matches: &[usize]) -> bool {
         matches.iter().enumerate().all(|(idx, val)| {
-            let next_proposed = Some(val + 1);
-            let next_actual = matches.get(idx + 1).copied();
+            let next_proposed = Some(val + &1);
+            let next_actual = matches.get(idx + 1);
 
-            next_actual != next_proposed
+            next_actual != next_proposed.as_ref()
         })
     }
 
