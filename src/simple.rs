@@ -126,6 +126,16 @@ impl<'a> SimpleMatch<'a> {
         let score = self.score(&matches);
 
         if score >= BASELINE {
+            // check is match is already indexed and use the index to sort
+            if let Some(num) = self
+                .choice
+                .split_ascii_whitespace()
+                .next()
+                .and_then(|s| str::parse::<i64>(s).ok())
+            {
+                return Some((num, matches));
+            }
+
             return Some((score, matches));
         }
 
