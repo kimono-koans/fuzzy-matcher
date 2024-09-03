@@ -21,23 +21,14 @@ enum CaseMatching {
     Smart,
 }
 
-#[derive(Eq, PartialEq, Debug, Copy, Clone)]
-#[allow(dead_code)]
-enum Indexed {
-    True,
-    False,
-}
-
 pub struct SimpleMatcher {
     case: CaseMatching,
-    indexed: Indexed,
 }
 
 impl Default for SimpleMatcher {
     fn default() -> Self {
         SimpleMatcher {
             case: CaseMatching::Smart,
-            indexed: Indexed::False,
         }
     }
 }
@@ -74,13 +65,6 @@ impl SimpleMatcher {
             CaseMatching::Smart => self.contains_upper(pattern),
         }
     }
-
-    fn is_indexed(&self) -> bool {
-        match self.indexed {
-            Indexed::False => false,
-            Indexed::True => true,
-        }
-    }
 }
 
 struct SimpleMatch<'a> {
@@ -90,7 +74,6 @@ struct SimpleMatch<'a> {
     pattern_len: usize,
     case_sensitive: bool,
     is_ascii: bool,
-    is_indexed: bool,
 }
 
 impl<'a> SimpleMatch<'a> {
@@ -98,7 +81,6 @@ impl<'a> SimpleMatch<'a> {
         let case_sensitive = matcher.is_case_sensitive(pattern);
         let mut choice_len = choice.len();
         let mut pattern_len = pattern.len();
-        let is_indexed = matcher.is_indexed();
 
         let is_ascii = choice.is_ascii() && pattern.is_ascii();
         if !is_ascii {
@@ -113,7 +95,6 @@ impl<'a> SimpleMatch<'a> {
             pattern_len,
             case_sensitive,
             is_ascii,
-            is_indexed,
         }
     }
 
@@ -145,18 +126,6 @@ impl<'a> SimpleMatch<'a> {
         let score = self.score(&matches);
 
         if score >= BASELINE {
-            if self.is_indexed {
-                // check is match is already indexed, like in a zsh history, we should use the index to sort
-                if let Some(num) = self
-                    .choice
-                    .split_ascii_whitespace()
-                    .next()
-                    .and_then(|s| str::parse::<i64>(s).ok())
-                {
-                    return Some((num, matches));
-                }
-            }
-
             return Some((score, matches));
         }
 
