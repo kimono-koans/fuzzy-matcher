@@ -149,7 +149,7 @@ impl<'a> SimpleMatch<'a> {
 
         let closeness = self.closeness(matches);
 
-        let closeness_score = 524_288 - (closeness * 16_384);
+        let closeness_score = 524_288 - (closeness * 32_768);
 
         let pat_contains_non_alpha = self
             .pattern
@@ -209,6 +209,10 @@ impl<'a> SimpleMatch<'a> {
         self.forward(&mut pattern_indices);
 
         if pattern_indices.is_empty() {
+            return None;
+        }
+
+        if pattern_indices.len() + 2 <= self.pattern_len {
             return None;
         }
 
