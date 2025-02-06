@@ -153,13 +153,7 @@ impl<'a> SimpleMatch<'a> {
 
         let closeness = self.closeness(matches);
 
-        let closeness_score = if closeness == 0 {
-            1_048_576
-        } else if closeness <= 8 {
-            524_288 / closeness.pow(2)
-        } else {
-            0
-        };
+        let closeness_score = 524_288 - (closeness * 16_384);
 
         let pat_contains_non_alpha = self
             .pattern
