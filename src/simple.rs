@@ -212,7 +212,7 @@ impl<'a> SimpleMatch<'a> {
 
         self.forward(&mut pattern_indices);
 
-        if pattern_indices.len() != self.pattern_len {
+        if pattern_indices.is_empty() {
             return None;
         }
 
@@ -331,7 +331,7 @@ impl<'a> Matching for SimpleMatch<'a> {
                     None
                 }) {
                     Some(char_idx) => pattern_indices.push(char_idx),
-                    None => return,
+                    None => continue,
                 }
             }
         } else {
@@ -346,7 +346,7 @@ impl<'a> Matching for SimpleMatch<'a> {
                     None
                 }) {
                     Some(char_idx) => pattern_indices.push(char_idx),
-                    None => return,
+                    None => continue,
                 }
             }
         }
