@@ -212,6 +212,7 @@ impl<'a> SimpleMatch<'a> {
             return None;
         }
 
+        // give a little flex, 2 chars, to when we bump a pattern for being off
         if pattern_indices.len() + 2 <= self.pattern_len {
             return None;
         }
