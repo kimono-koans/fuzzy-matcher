@@ -109,10 +109,6 @@ impl<'a> SimpleMatch<'a> {
 
         let mut matches = self.forward_matches()?;
 
-        if matches.len() < self.pattern_len {
-            return None;
-        }
-
         let closeness = self.closeness(&matches);
 
         if closeness != 0 {
