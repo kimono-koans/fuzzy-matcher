@@ -55,7 +55,7 @@ impl SimpleMatcher {
     }
 
     fn contains_upper(&self, string: &str) -> bool {
-        string.as_bytes().iter().any(|b| b.is_ascii_uppercase())
+        string.chars().any(|b| b.is_uppercase())
     }
 
     fn is_case_sensitive(&self, pattern: &str) -> bool {
@@ -140,19 +140,13 @@ impl<'a> SimpleMatch<'a> {
 
         let closeness_score = 524_288 - (closeness * 32_768);
 
-        let pat_contains_non_alpha = self
-            .pattern
-            .as_bytes()
-            .iter()
-            .any(|c_char| !c_char.is_ascii_alphabetic());
+        let pat_contains_non_alpha = self.pattern.chars().any(|c_char| !c_char.is_alphanumeric());
 
         let first_alpha_char = if pat_contains_non_alpha {
             self.choice
-                .as_bytes()
-                .iter()
-                .enumerate()
+                .char_indices()
                 .find_map(|(idx, c_char)| {
-                    if c_char.is_ascii_alphabetic() {
+                    if c_char.is_alphanumeric() {
                         return Some(idx);
                     }
 
@@ -245,11 +239,9 @@ impl<'a> SimpleMatch<'a> {
                 let previous = *idx - 1;
 
                 self.choice
-                    .as_bytes()
-                    .iter()
-                    .enumerate()
+                    .char_indices()
                     .nth(previous)
-                    .map(|(idx, b)| self.choice.is_char_boundary(idx) && b == &b'\t' || b == &b' ')
+                    .map(|(idx, b)| self.choice.is_char_boundary(idx) && b == '\t' || b == ' ')
                     .unwrap_or(false)
             })
             .count()
@@ -266,38 +258,22 @@ impl<'a> SimpleMatch<'a> {
                     return None;
                 }
 
-                self.choice
-                    .as_bytes()
-                    .iter()
-                    .enumerate()
-                    .nth(previous)
-                    .map(|(idx, b)| {
-                        self.choice.is_char_boundary(idx) && b == &b'\t'
-                            || b == &b'/'
-                            || b == &b':'
-                            || b == &b'-'
-                            || b == &b'_'
-                            || b == &b' '
-                    })
+                self.choice.char_indices().nth(previous).map(|(idx, b)| {
+                    self.choice.is_char_boundary(idx) && b == '\t'
+                        || b == '/'
+                        || b == ':'
+                        || b == '-'
+                        || b == '_'
+                        || b == ' '
+                })
             })
             .count()
     }
 
     #[inline]
     fn first_letter_uppercase(&self, start_idx: usize) -> bool {
-        self.pattern
-            .as_bytes()
-            .iter()
-            .nth(0)
-            .unwrap()
-            .is_ascii_uppercase()
-            && self
-                .choice
-                .as_bytes()
-                .iter()
-                .nth(start_idx)
-                .unwrap()
-                .is_ascii_uppercase()
+        self.pattern.chars().nth(0).unwrap().is_uppercase()
+            && self.choice.chars().nth(start_idx).unwrap().is_uppercase()
     }
 }
 
