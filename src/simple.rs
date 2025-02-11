@@ -150,7 +150,7 @@ impl<'a> SimpleMatch<'a> {
     fn score(&self, matches: &[usize]) -> i64 {
         let start_idx = matches.first().unwrap_or(&0);
 
-        let closeness_score = 1_048_576 - (self.closeness(matches) * 32_768);
+        let closeness_score = 524_288 - (self.closeness(matches) * 32_768);
 
         let start_idx_bonus = if let Some((first_alpha_idx, _)) = self
             .choice
@@ -186,7 +186,7 @@ impl<'a> SimpleMatch<'a> {
             + word_boundary_bonus
             + first_letter_case_bonus
             - len_neg
-            - 65_536) as i64
+            - 131_072) as i64
     }
 
     fn forward_matches(&self) -> Option<Vec<usize>> {
@@ -195,6 +195,10 @@ impl<'a> SimpleMatch<'a> {
         self.forward(&mut pattern_indices);
 
         if pattern_indices.is_empty() {
+            return None;
+        }
+
+        if pattern_indices.len() + 2 <= self.pattern_len {
             return None;
         }
 
