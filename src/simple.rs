@@ -147,37 +147,26 @@ impl<'a> SimpleMatch<'a> {
         })
     }
 
-    fn first_alpha_char(&self, start_idx: usize) -> usize {
-        let pat_contains_non_alpha = self
-            .pattern
-            .as_bytes()
-            .iter()
-            .any(|c_char| !c_char.is_ascii_alphabetic());
-
-        if pat_contains_non_alpha {
-            self.choice
-                .as_bytes()
-                .iter()
-                .enumerate()
-                .find_map(|(idx, c_char)| {
-                    if c_char.is_ascii_alphabetic() {
-                        return Some(idx);
-                    }
-
-                    None
-                })
-                .unwrap_or(start_idx)
-        } else {
-            start_idx
-        }
-    }
-
     fn score(&self, matches: &[usize]) -> i64 {
-        let start_idx = *matches.first().unwrap_or(&0);
+        let start_idx = matches.first().unwrap_or(&0);
 
-        let closeness_score = 524_288 - (self.closeness(matches) * 32_768);
+        let closeness_score = 1_048_576 - (self.closeness(matches) * 32_768);
 
-        let start_idx_bonus = 32_768 - (self.first_alpha_char(start_idx) * 2048);
+        let start_idx_bonus = if let Some((first_alpha_idx, _)) = self
+            .choice
+            .bytes()
+            .enumerate()
+            .filter(|(_idx, c_char)| !c_char.is_ascii_alphabetic())
+            .next()
+        {
+            if &first_alpha_idx == start_idx {
+                32_768
+            } else {
+                0
+            }
+        } else {
+            0
+        };
 
         let first_letter_case_bonus = if self.first_letter_uppercase(start_idx) {
             16_384
@@ -189,13 +178,13 @@ impl<'a> SimpleMatch<'a> {
 
         let follows_special_char_bonus = self.follows_special_char(matches) * 4_096;
 
-        let len_neg = self.choice_len * 8;
+        let len_neg = self.choice_len * 128;
 
         (closeness_score
             + start_idx_bonus
-            + first_letter_case_bonus
             + follows_special_char_bonus
             + word_boundary_bonus
+            + first_letter_case_bonus
             - len_neg
             - 65_536) as i64
     }
@@ -277,7 +266,7 @@ impl<'a> SimpleMatch<'a> {
     }
 
     #[inline]
-    fn first_letter_uppercase(&self, start_idx: usize) -> bool {
+    fn first_letter_uppercase(&self, start_idx: &usize) -> bool {
         self.pattern
             .as_bytes()
             .iter()
@@ -288,7 +277,7 @@ impl<'a> SimpleMatch<'a> {
                 .choice
                 .as_bytes()
                 .iter()
-                .nth(start_idx)
+                .nth(*start_idx)
                 .unwrap()
                 .is_ascii_uppercase()
     }
