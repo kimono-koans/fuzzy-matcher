@@ -136,13 +136,14 @@ impl<'a> SimpleMatch<'a> {
 
     #[inline(always)]
     fn fuzzy(&self) -> Option<(ScoreType, Vec<IndexType>)> {
-        if self.match_type.pattern_len() == 0 {
+        let pattern_len = self.match_type.pattern_len();
+        let choice_len = self.match_type.choice_len();
+
+        if pattern_len == 0 {
             return Some((0, Vec::new()));
         }
 
-        if self.match_type.choice_len() == 0
-            || self.match_type.pattern_len() > self.match_type.choice_len()
-        {
+        if choice_len == 0 || pattern_len > choice_len {
             return None;
         }
 
