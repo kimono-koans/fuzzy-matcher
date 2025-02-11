@@ -165,12 +165,13 @@ impl<'a> SimpleMatch<'a> {
 
     #[inline(always)]
     fn closeness(&self, matches: &[usize]) -> usize {
+        let matches_len = matches.len();
+        let pattern_len = self.match_type.pattern_len();
+
         let start_idx = *matches.first().unwrap_or(&0);
         let end_idx = *matches.last().unwrap_or(&0);
 
-        self.match_type
-            .pattern_len()
-            .abs_diff(end_idx.abs_diff(start_idx) + 1)
+        pattern_len.abs_diff(matches_len) + pattern_len.abs_diff(end_idx.abs_diff(start_idx))
     }
 
     #[allow(dead_code)]
@@ -229,7 +230,7 @@ impl<'a> SimpleMatch<'a> {
 
         let first_alpha_char = self.first_alpha_char(start_idx);
 
-        let start_idx_bonus: i64 = (32_768 - (first_alpha_char * 4_096)) as i64;
+        let start_idx_bonus: i64 = (65_536 - (first_alpha_char * 4_096)) as i64;
 
         let first_letter_case_bonus: i64 = if self.first_letter_uppercase(start_idx) {
             16_384
@@ -241,7 +242,7 @@ impl<'a> SimpleMatch<'a> {
 
         let follows_special_char_bonus = (self.follows_special_char(matches) * 4_096) as i64;
 
-        let len_neg: i64 = (self.match_type.choice_len() * 8) as i64;
+        let len_neg: i64 = (self.match_type.choice_len() * 2) as i64;
 
         closeness_score
             + start_idx_bonus
@@ -249,7 +250,7 @@ impl<'a> SimpleMatch<'a> {
             + follows_special_char_bonus
             + word_boundary_bonus
             - len_neg
-            - 65_536i64
+            - 65_536
     }
 
     #[inline(always)]
