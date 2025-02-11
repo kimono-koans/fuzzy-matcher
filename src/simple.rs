@@ -138,7 +138,7 @@ impl<'a> SimpleMatch<'a> {
 
         let closeness = self.closeness(matches);
 
-        let closeness_score = 524_288 - (closeness * 32_768);
+        let closeness_score: i64 = (524_288 - (closeness * 32_768)) as i64;
 
         let pat_contains_non_alpha = self.pattern.chars().any(|c_char| !c_char.is_alphanumeric());
 
@@ -157,33 +157,27 @@ impl<'a> SimpleMatch<'a> {
             start_idx
         };
 
-        let start_idx_bonus = if first_alpha_char == 0 {
-            32_768
-        } else if first_alpha_char <= 4 {
-            32_768 / first_alpha_char.pow(2)
-        } else {
-            0
-        };
+        let start_idx_bonus: i64 = (32_768 - (first_alpha_char * 4_096)) as i64;
 
-        let first_letter_case_bonus = if self.first_letter_uppercase(start_idx) {
+        let first_letter_case_bonus: i64 = if self.first_letter_uppercase(start_idx) {
             16_384
         } else {
             0
         };
 
-        let word_boundary_bonus = self.word_boundary(matches) * 16_384;
+        let word_boundary_bonus = (self.word_boundary(matches) * 16_384) as i64;
 
-        let follows_special_char_bonus = self.follows_special_char(matches) * 4_096;
+        let follows_special_char_bonus = (self.follows_special_char(matches) * 4_096) as i64;
 
-        let len_neg = self.choice_len * 8;
+        let len_neg: i64 = (self.choice_len * 8) as i64;
 
-        (closeness_score
+        closeness_score
             + start_idx_bonus
             + first_letter_case_bonus
             + follows_special_char_bonus
             + word_boundary_bonus
             - len_neg
-            - 65_536) as i64
+            - 65_536i64
     }
 
     fn forward_matches(&self) -> Option<Vec<usize>> {
