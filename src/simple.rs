@@ -129,10 +129,13 @@ impl<'a> SimpleMatch<'a> {
     }
 
     fn closeness(&self, matches: &[usize]) -> usize {
+        let matches_len = matches.len();
+
         let start_idx = *matches.first().unwrap_or(&0);
         let end_idx = *matches.last().unwrap_or(&0);
 
-        self.pattern_len.abs_diff(end_idx.abs_diff(start_idx) + 1)
+        self.pattern_len.abs_diff(matches_len)
+            + self.pattern_len.abs_diff(end_idx.abs_diff(start_idx) + 1)
     }
 
     fn none_consecutive(matches: &[usize]) -> bool {
@@ -354,21 +357,36 @@ impl<'a> Matching for SimpleMatch<'a> {
     }
 
     fn reverse(&self, pattern_indices: &mut Vec<usize>) {
-        if self.case_sensitive {
-            self.choice.rfind(self.pattern).map(|idx| {
-                (idx..idx + self.pattern_len)
-                    .into_iter()
-                    .for_each(|idx| pattern_indices.push(idx))
-            });
-        } else {
-            let c_upper = self.choice.to_uppercase();
-            let p_upper = self.pattern.to_uppercase();
+        if self.is_ascii {
+            let mut choice_iter = self.choice.as_bytes().iter().enumerate().rev();
 
-            let _ = &c_upper.as_str().rfind(p_upper.as_str()).map(|idx| {
-                (idx..idx + self.pattern_len)
-                    .into_iter()
-                    .for_each(|idx| pattern_indices.push(idx))
-            });
+            for p_char in self.pattern.bytes().rev() {
+                match choice_iter.find_map(|(idx, c_char)| {
+                    if self.byte_equal(&p_char, &c_char) {
+                        return Some(idx);
+                    }
+
+                    None
+                }) {
+                    Some(char_idx) => pattern_indices.push(char_idx),
+                    None => continue,
+                }
+            }
+        } else {
+            let mut choice_iter = self.choice.char_indices().rev();
+
+            for p_char in self.pattern.chars().rev() {
+                match choice_iter.find_map(|(idx, c_char)| {
+                    if self.char_equal(&p_char, &c_char) {
+                        return Some(idx);
+                    }
+
+                    None
+                }) {
+                    Some(char_idx) => pattern_indices.push(char_idx),
+                    None => continue,
+                }
+            }
         }
     }
 
