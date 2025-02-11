@@ -109,10 +109,10 @@ impl<'a> SimpleMatch<'a> {
 
         let mut matches = self.forward_matches()?;
 
-        let closeness = self.closeness(&matches);
+        let forward_closeness = self.closeness(&matches);
 
-        if closeness != 0 {
-            self.reverse_matches(&mut matches);
+        if forward_closeness != 0 {
+            self.reverse_matches(&mut matches, forward_closeness);
         }
 
         if self.pattern_len > 3 && Self::none_consecutive(&matches) {
@@ -212,25 +212,14 @@ impl<'a> SimpleMatch<'a> {
         Some(pattern_indices)
     }
 
-    fn reverse_matches(&self, matches: &mut Vec<usize>) {
-        let start_idx = *matches.first().unwrap_or(&0);
-        let end_idx = *matches.last().unwrap_or(&0);
-
-        let diff = end_idx - start_idx + 1;
-
-        if diff == 0 {
-            return;
-        }
-
+    fn reverse_matches(&self, matches: &mut Vec<usize>, forward_closeness: usize) {
         let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
 
         self.reverse(&mut pattern_indices);
 
-        let reverse_start_idx = *pattern_indices.first().unwrap_or(&0);
-        let reverse_end_idx = *pattern_indices.last().unwrap_or(&0);
-        let reverse_diff = reverse_end_idx - reverse_start_idx + 1;
+        let reverse_closeness = self.closeness(&pattern_indices);
 
-        if reverse_diff < diff {
+        if reverse_closeness < forward_closeness {
             *matches = pattern_indices;
         }
     }
