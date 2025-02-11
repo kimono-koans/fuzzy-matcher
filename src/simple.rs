@@ -73,20 +73,13 @@ struct SimpleMatch<'a> {
     choice_len: usize,
     pattern_len: usize,
     case_sensitive: bool,
-    is_ascii: bool,
 }
 
 impl<'a> SimpleMatch<'a> {
     fn new(choice: &'a str, pattern: &'a str, matcher: &'a SimpleMatcher) -> Self {
         let case_sensitive = matcher.is_case_sensitive(pattern);
-        let mut choice_len = choice.len();
-        let mut pattern_len = pattern.len();
-
-        let is_ascii = choice.is_ascii() && pattern.is_ascii();
-        if !is_ascii {
-            choice_len = choice.chars().count();
-            pattern_len = pattern.chars().count();
-        }
+        let choice_len = choice.chars().count();
+        let pattern_len = pattern.chars().count();
 
         Self {
             choice,
@@ -94,7 +87,6 @@ impl<'a> SimpleMatch<'a> {
             choice_len,
             pattern_len,
             case_sensitive,
-            is_ascii,
         }
     }
 
@@ -115,10 +107,6 @@ impl<'a> SimpleMatch<'a> {
             self.reverse_matches(&mut matches);
         }
 
-        if self.pattern_len > 3 && Self::none_consecutive(&matches) {
-            return None;
-        }
-
         let score = self.score(&matches);
 
         if score >= BASELINE {
@@ -135,6 +123,7 @@ impl<'a> SimpleMatch<'a> {
         self.pattern_len.abs_diff(end_idx.abs_diff(start_idx) + 1)
     }
 
+    #[allow(dead_code)]
     fn none_consecutive(matches: &[usize]) -> bool {
         matches.iter().enumerate().all(|(idx, val)| {
             let next_proposed = Some(val + &1);
@@ -204,20 +193,20 @@ impl<'a> SimpleMatch<'a> {
     }
 
     fn forward_matches(&self) -> Option<Vec<usize>> {
-        let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
+        let mut iter = self.forward();
 
-        self.forward(&mut pattern_indices);
+        let count = iter.by_ref().count();
 
-        if pattern_indices.is_empty() {
+        if count == 0 {
             return None;
         }
 
         // give a little flex, 2 chars, to when we bump a pattern for being off
-        if pattern_indices.len() + 2 <= self.pattern_len {
+        if count + 2 <= self.pattern_len {
             return None;
         }
 
-        Some(pattern_indices)
+        Some(iter.collect())
     }
 
     fn reverse_matches(&self, matches: &mut Vec<usize>) {
@@ -230,16 +219,17 @@ impl<'a> SimpleMatch<'a> {
             return;
         }
 
-        let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
+        let mut iter = self.reverse();
 
-        self.reverse(&mut pattern_indices);
+        let first = iter.by_ref().next();
+        let last = iter.by_ref().last();
 
-        let reverse_start_idx = *pattern_indices.first().unwrap_or(&0);
-        let reverse_end_idx = *pattern_indices.last().unwrap_or(&0);
+        let reverse_start_idx = first.unwrap_or(0);
+        let reverse_end_idx = last.unwrap_or(0);
         let reverse_diff = reverse_end_idx - reverse_start_idx + 1;
 
         if reverse_diff < diff {
-            *matches = pattern_indices;
+            *matches = iter.collect()
         }
     }
 
@@ -312,64 +302,43 @@ impl<'a> SimpleMatch<'a> {
 }
 
 pub trait Matching {
-    fn forward(&self, pattern_indices: &mut Vec<usize>);
-    fn reverse(&self, pattern_indices: &mut Vec<usize>);
+    fn forward(&self) -> impl Iterator<Item = usize>;
+    fn reverse(&self) -> impl Iterator<Item = usize>;
     fn char_equal(&self, a: &char, b: &char) -> bool;
     fn byte_equal(&self, a: &u8, b: &u8) -> bool;
 }
 
 impl<'a> Matching for SimpleMatch<'a> {
-    fn forward(&self, pattern_indices: &mut Vec<usize>) {
-        if self.is_ascii {
-            let mut choice_iter = self.choice.as_bytes().iter().enumerate();
+    fn forward(&self) -> impl Iterator<Item = usize> {
+        let mut choice_iter = self.choice.char_indices();
 
-            for p_char in self.pattern.as_bytes().iter() {
-                match choice_iter.find_map(|(idx, c_char)| {
-                    if self.byte_equal(&p_char, &c_char) {
-                        return Some(idx);
-                    }
-
-                    None
-                }) {
-                    Some(char_idx) => pattern_indices.push(char_idx),
-                    None => continue,
+        self.pattern.chars().rev().filter_map(move |p_char| {
+            choice_iter.find_map(|(idx, c_char)| {
+                if self.char_equal(&p_char, &c_char) {
+                    return Some(idx);
                 }
-            }
-        } else {
-            let mut choice_iter = self.choice.char_indices();
 
-            for p_char in self.pattern.chars() {
-                match choice_iter.find_map(|(idx, c_char)| {
+                None
+            })
+        })
+    }
+
+    fn reverse(&self) -> impl Iterator<Item = usize> {
+        let mut choice_iter = self.choice.char_indices().rev();
+
+        self.pattern
+            .chars()
+            .rev()
+            .filter_map(move |p_char| {
+                choice_iter.find_map(|(idx, c_char)| {
                     if self.char_equal(&p_char, &c_char) {
                         return Some(idx);
                     }
 
                     None
-                }) {
-                    Some(char_idx) => pattern_indices.push(char_idx),
-                    None => continue,
-                }
-            }
-        }
-    }
-
-    fn reverse(&self, pattern_indices: &mut Vec<usize>) {
-        if self.case_sensitive {
-            self.choice.rfind(self.pattern).map(|idx| {
-                (idx..idx + self.pattern_len)
-                    .into_iter()
-                    .for_each(|idx| pattern_indices.push(idx))
-            });
-        } else {
-            let c_upper = self.choice.to_uppercase();
-            let p_upper = self.pattern.to_uppercase();
-
-            let _ = &c_upper.as_str().rfind(p_upper.as_str()).map(|idx| {
-                (idx..idx + self.pattern_len)
-                    .into_iter()
-                    .for_each(|idx| pattern_indices.push(idx))
-            });
-        }
+                })
+            })
+            .rev()
     }
 
     #[inline]
