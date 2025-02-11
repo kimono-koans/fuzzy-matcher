@@ -217,6 +217,8 @@ impl<'a> SimpleMatch<'a> {
 
         self.reverse(&mut pattern_indices);
 
+        pattern_indices.reverse();
+
         let reverse_closeness = self.closeness(&pattern_indices);
 
         if reverse_closeness < forward_closeness {
