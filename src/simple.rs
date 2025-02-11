@@ -85,21 +85,17 @@ enum MatchType {
 
 impl MatchType {
     fn pattern_len(&self) -> usize {
-        let (_choice_len, pattern_len) = match self {
-            MatchType::Bytes(inner) => (inner.choice_len, inner.pattern_len),
-            MatchType::Chars(inner) => (inner.choice_len, inner.pattern_len),
-        };
-
-        pattern_len
+        match self {
+            MatchType::Bytes(inner) => inner.pattern_len,
+            MatchType::Chars(inner) => inner.pattern_len,
+        }
     }
 
     fn choice_len(&self) -> usize {
-        let (choice_len, _pattern_len) = match self {
-            MatchType::Bytes(inner) => (inner.choice_len, inner.pattern_len),
-            MatchType::Chars(inner) => (inner.choice_len, inner.pattern_len),
-        };
-
-        choice_len
+        match self {
+            MatchType::Bytes(inner) => inner.choice_len,
+            MatchType::Chars(inner) => inner.choice_len,
+        }
     }
 }
 
@@ -138,6 +134,7 @@ impl<'a> SimpleMatch<'a> {
         }
     }
 
+    #[inline(always)]
     fn fuzzy(&self) -> Option<(ScoreType, Vec<IndexType>)> {
         if self.match_type.pattern_len() == 0 {
             return Some((0, Vec::new()));
@@ -166,6 +163,7 @@ impl<'a> SimpleMatch<'a> {
         None
     }
 
+    #[inline(always)]
     fn closeness(&self, matches: &[usize]) -> usize {
         let start_idx = *matches.first().unwrap_or(&0);
         let end_idx = *matches.last().unwrap_or(&0);
@@ -185,6 +183,43 @@ impl<'a> SimpleMatch<'a> {
         })
     }
 
+    fn first_alpha_char(&self, start_idx: usize) -> usize {
+        let pat_contains_non_alpha = self.pattern.chars().any(|c_char| !c_char.is_alphanumeric());
+
+        let first_alpha_char = if pat_contains_non_alpha {
+            match self.match_type {
+                MatchType::Bytes(_) => self
+                    .choice
+                    .bytes()
+                    .enumerate()
+                    .find_map(|(idx, c_char)| {
+                        if c_char.is_ascii_alphanumeric() {
+                            return Some(idx);
+                        }
+
+                        None
+                    })
+                    .unwrap_or(start_idx),
+                MatchType::Chars(_) => self
+                    .choice
+                    .char_indices()
+                    .find_map(|(idx, c_char)| {
+                        if c_char.is_alphanumeric() {
+                            return Some(idx);
+                        }
+
+                        None
+                    })
+                    .unwrap_or(start_idx),
+            }
+        } else {
+            start_idx
+        };
+
+        first_alpha_char
+    }
+
+    #[inline(always)]
     fn score(&self, matches: &[usize]) -> i64 {
         let start_idx = *matches.first().unwrap_or(&0);
 
@@ -192,22 +227,7 @@ impl<'a> SimpleMatch<'a> {
 
         let closeness_score: i64 = (524_288 - (closeness * 32_768)) as i64;
 
-        let pat_contains_non_alpha = self.pattern.chars().any(|c_char| !c_char.is_alphanumeric());
-
-        let first_alpha_char = if pat_contains_non_alpha {
-            self.choice
-                .char_indices()
-                .find_map(|(idx, c_char)| {
-                    if c_char.is_alphanumeric() {
-                        return Some(idx);
-                    }
-
-                    None
-                })
-                .unwrap_or(start_idx)
-        } else {
-            start_idx
-        };
+        let first_alpha_char = self.first_alpha_char(start_idx);
 
         let start_idx_bonus: i64 = (32_768 - (first_alpha_char * 4_096)) as i64;
 
@@ -232,15 +252,17 @@ impl<'a> SimpleMatch<'a> {
             - 65_536i64
     }
 
+    #[inline(always)]
     fn forward_matches(&self) -> Option<Vec<usize>> {
         self.forward()
     }
 
+    #[inline(always)]
     fn reverse_matches(&self, matches: &mut Vec<usize>) {
         self.reverse(matches)
     }
 
-    #[inline]
+    #[inline(always)]
     fn word_boundary(&self, matches: &[usize]) -> usize {
         matches
             .iter()
@@ -251,16 +273,28 @@ impl<'a> SimpleMatch<'a> {
 
                 let previous = *idx - 1;
 
-                self.choice
-                    .char_indices()
-                    .nth(previous)
-                    .map(|(idx, b)| self.choice.is_char_boundary(idx) && b == '\t' || b == ' ')
-                    .unwrap_or(false)
+                match self.match_type {
+                    MatchType::Bytes(_) => self
+                        .choice
+                        .bytes()
+                        .enumerate()
+                        .nth(previous)
+                        .map(|(idx, b)| {
+                            self.choice.is_char_boundary(idx) && b == b'\t' || b == b' '
+                        })
+                        .unwrap_or(false),
+                    MatchType::Chars(_) => self
+                        .choice
+                        .char_indices()
+                        .nth(previous)
+                        .map(|(idx, b)| self.choice.is_char_boundary(idx) && b == '\t' || b == ' ')
+                        .unwrap_or(false),
+                }
             })
             .count()
     }
 
-    #[inline]
+    #[inline(always)]
     fn follows_special_char(&self, matches: &[usize]) -> usize {
         matches
             .iter()
@@ -271,14 +305,32 @@ impl<'a> SimpleMatch<'a> {
                     return None;
                 }
 
-                self.choice.char_indices().nth(previous).map(|(idx, b)| {
-                    self.choice.is_char_boundary(idx) && b == '\t'
-                        || b == '/'
-                        || b == ':'
-                        || b == '-'
-                        || b == '_'
-                        || b == ' '
-                })
+                match self.match_type {
+                    MatchType::Bytes(_) => {
+                        self.choice
+                            .bytes()
+                            .enumerate()
+                            .nth(previous)
+                            .map(|(idx, b)| {
+                                self.choice.is_char_boundary(idx) && b == b'\t'
+                                    || b == b'/'
+                                    || b == b':'
+                                    || b == b'-'
+                                    || b == b'_'
+                                    || b == b' '
+                            })
+                    }
+                    MatchType::Chars(_) => {
+                        self.choice.char_indices().nth(previous).map(|(idx, b)| {
+                            self.choice.is_char_boundary(idx) && b == '\t'
+                                || b == '/'
+                                || b == ':'
+                                || b == '-'
+                                || b == '_'
+                                || b == ' '
+                        })
+                    }
+                }
             })
             .count()
     }
