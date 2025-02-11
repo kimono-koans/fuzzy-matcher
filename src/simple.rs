@@ -194,7 +194,7 @@ impl<'a> SimpleMatch<'a> {
                     .bytes()
                     .enumerate()
                     .find_map(|(idx, c_char)| {
-                        if c_char.is_ascii_alphanumeric() {
+                        if c_char.is_ascii_alphabetic() {
                             return Some(idx);
                         }
 
@@ -205,7 +205,7 @@ impl<'a> SimpleMatch<'a> {
                     .choice
                     .char_indices()
                     .find_map(|(idx, c_char)| {
-                        if c_char.is_alphanumeric() {
+                        if c_char.is_alphabetic() {
                             return Some(idx);
                         }
 
@@ -228,9 +228,9 @@ impl<'a> SimpleMatch<'a> {
 
         let closeness_score: i64 = (524_288 - (closeness * 32_768)) as i64;
 
-        let first_alpha_char = self.first_alpha_char(start_idx);
+        let first_alpha_char = matches.first() == Some(&self.first_alpha_char(start_idx));
 
-        let start_idx_bonus: i64 = (65_536 - (first_alpha_char * 4_096)) as i64;
+        let start_idx_bonus: i64 = if first_alpha_char { 4_096 } else { 0 };
 
         let first_letter_case_bonus: i64 = if self.first_letter_uppercase(start_idx) {
             16_384
@@ -242,7 +242,7 @@ impl<'a> SimpleMatch<'a> {
 
         let follows_special_char_bonus = (self.follows_special_char(matches) * 4_096) as i64;
 
-        let len_neg: i64 = (self.match_type.choice_len() * 2) as i64;
+        let len_neg: i64 = (self.match_type.choice_len() * 8) as i64;
 
         closeness_score
             + start_idx_bonus
@@ -386,11 +386,6 @@ impl<'a> Matching for SimpleMatch<'a> {
                     return None;
                 }
 
-                // give a little flex, 2 chars, to when we bump a pattern for being off
-                if count + 2 <= self.match_type.pattern_len() {
-                    return None;
-                }
-
                 Some(iter.collect())
             }
             MatchType::Chars(_) => {
@@ -409,11 +404,6 @@ impl<'a> Matching for SimpleMatch<'a> {
                 let count = iter.by_ref().count();
 
                 if count == 0 {
-                    return None;
-                }
-
-                // give a little flex, 2 chars, to when we bump a pattern for being off
-                if count + 2 <= self.match_type.pattern_len() {
                     return None;
                 }
 
