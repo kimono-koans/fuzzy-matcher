@@ -226,11 +226,11 @@ impl<'a> SimpleMatch<'a> {
 
         let closeness = self.closeness(matches);
 
-        let closeness_score: i64 = (524_288 - (closeness * 32_768)) as i64;
+        let closeness_score: i64 = (1_048_576 - (closeness * 32_768)) as i64;
 
-        let first_alpha_char = matches.first() == Some(&self.first_alpha_char(start_idx));
+        let first_alpha_char = start_idx == self.first_alpha_char(start_idx);
 
-        let start_idx_bonus: i64 = if first_alpha_char { 4_096 } else { 0 };
+        let start_idx_bonus: i64 = if first_alpha_char { 16_384 } else { 0 };
 
         let first_letter_case_bonus: i64 = if self.first_letter_uppercase(start_idx) {
             16_384
