@@ -55,7 +55,7 @@ impl SimpleMatcher {
     }
 
     fn contains_upper(&self, string: &str) -> bool {
-        string.as_bytes().iter().any(|b| b.is_ascii_uppercase())
+        string.bytes().any(|b| b.is_ascii_uppercase())
     }
 
     fn is_case_sensitive(&self, pattern: &str) -> bool {
@@ -324,9 +324,9 @@ pub trait Matching {
 impl<'a> Matching for SimpleMatch<'a> {
     fn forward(&self, pattern_indices: &mut Vec<usize>) {
         if self.is_ascii {
-            let mut choice_iter = self.choice.as_bytes().iter().enumerate();
+            let mut choice_iter = self.choice.bytes().enumerate();
 
-            for p_char in self.pattern.as_bytes().iter() {
+            for p_char in self.pattern.bytes() {
                 match choice_iter.find_map(|(idx, c_char)| {
                     if self.byte_equal(&p_char, &c_char) {
                         return Some(idx);
@@ -358,7 +358,7 @@ impl<'a> Matching for SimpleMatch<'a> {
 
     fn reverse(&self, pattern_indices: &mut Vec<usize>) {
         if self.is_ascii {
-            let mut choice_iter = self.choice.as_bytes().iter().enumerate().rev();
+            let mut choice_iter = self.choice.bytes().enumerate().rev();
 
             for p_char in self.pattern.bytes().rev() {
                 match choice_iter.find_map(|(idx, c_char)| {
@@ -461,9 +461,9 @@ mod tests {
 // }
 
 // fn reverse(&self, pattern_indices: &mut Vec<usize>) {
-//     let mut choice_iter = self.inner.choice.as_bytes().iter().enumerate().rev();
+//     let mut choice_iter = self.inner.choice.bytes().enumerate().rev();
 
-//     for p_char in self.inner.pattern.as_bytes().iter().rev() {
+//     for p_char in self.inner.pattern.bytes().rev() {
 //         match choice_iter.find_map(|(idx, c_char)| {
 //             if self.byte_equal(p_char, c_char) && self.inner.choice.is_char_boundary(idx) {
 //                 return Some(idx);
