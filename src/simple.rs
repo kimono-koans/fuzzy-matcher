@@ -55,11 +55,7 @@ impl SimpleMatcher {
     }
 
     fn contains_upper(&self, string: &str) -> bool {
-        if string.is_ascii() {
-            return string.bytes().any(|b| b.is_ascii_uppercase());
-        }
-
-        string.chars().any(|b| b.is_uppercase())
+        string.as_bytes().iter().any(|b| b.is_ascii_uppercase())
     }
 
     fn is_case_sensitive(&self, pattern: &str) -> bool {
@@ -74,76 +70,40 @@ impl SimpleMatcher {
 struct SimpleMatch<'a> {
     choice: &'a str,
     pattern: &'a str,
-    match_type: MatchType,
+    choice_len: usize,
+    pattern_len: usize,
     case_sensitive: bool,
-}
-
-enum MatchType {
-    Bytes(ChoicePatternLen),
-    Chars(ChoicePatternLen),
-}
-
-impl MatchType {
-    fn pattern_len(&self) -> usize {
-        match self {
-            MatchType::Bytes(inner) => inner.pattern_len,
-            MatchType::Chars(inner) => inner.pattern_len,
-        }
-    }
-
-    fn choice_len(&self) -> usize {
-        match self {
-            MatchType::Bytes(inner) => inner.choice_len,
-            MatchType::Chars(inner) => inner.choice_len,
-        }
-    }
-}
-
-struct ChoicePatternLen {
-    pub choice_len: usize,
-    pub pattern_len: usize,
+    is_ascii: bool,
 }
 
 impl<'a> SimpleMatch<'a> {
     fn new(choice: &'a str, pattern: &'a str, matcher: &'a SimpleMatcher) -> Self {
         let case_sensitive = matcher.is_case_sensitive(pattern);
+        let mut choice_len = choice.len();
+        let mut pattern_len = pattern.len();
 
-        let match_type = if choice.is_ascii() && pattern.is_ascii() {
-            let choice_len = choice.chars().count();
-            let pattern_len = pattern.chars().count();
-
-            MatchType::Bytes(ChoicePatternLen {
-                choice_len,
-                pattern_len,
-            })
-        } else {
-            let choice_len = choice.len();
-            let pattern_len = pattern.len();
-
-            MatchType::Chars(ChoicePatternLen {
-                choice_len,
-                pattern_len,
-            })
-        };
+        let is_ascii = choice.is_ascii() && pattern.is_ascii();
+        if !is_ascii {
+            choice_len = choice.chars().count();
+            pattern_len = pattern.chars().count();
+        }
 
         Self {
             choice,
             pattern,
-            match_type,
+            choice_len,
+            pattern_len,
             case_sensitive,
+            is_ascii,
         }
     }
 
-    #[inline(always)]
     fn fuzzy(&self) -> Option<(ScoreType, Vec<IndexType>)> {
-        let pattern_len = self.match_type.pattern_len();
-        let choice_len = self.match_type.choice_len();
-
-        if pattern_len == 0 {
+        if self.pattern_len == 0 {
             return Some((0, Vec::new()));
         }
 
-        if choice_len == 0 || pattern_len > choice_len {
+        if self.choice_len == 0 || self.pattern_len > self.choice_len {
             return None;
         }
 
@@ -155,6 +115,10 @@ impl<'a> SimpleMatch<'a> {
             self.reverse_matches(&mut matches);
         }
 
+        if self.pattern_len > 3 && Self::none_consecutive(&matches) {
+            return None;
+        }
+
         let score = self.score(&matches);
 
         if score >= BASELINE {
@@ -164,18 +128,13 @@ impl<'a> SimpleMatch<'a> {
         None
     }
 
-    #[inline(always)]
     fn closeness(&self, matches: &[usize]) -> usize {
-        let matches_len = matches.len();
-        let pattern_len = self.match_type.pattern_len();
-
         let start_idx = *matches.first().unwrap_or(&0);
         let end_idx = *matches.last().unwrap_or(&0);
 
-        pattern_len.abs_diff(matches_len) + pattern_len.abs_diff(end_idx.abs_diff(start_idx))
+        self.pattern_len.abs_diff(end_idx.abs_diff(start_idx) + 1)
     }
 
-    #[allow(dead_code)]
     fn none_consecutive(matches: &[usize]) -> bool {
         matches.iter().enumerate().all(|(idx, val)| {
             let next_proposed = Some(val + &1);
@@ -185,86 +144,106 @@ impl<'a> SimpleMatch<'a> {
         })
     }
 
-    fn first_alpha_char(&self, start_idx: usize) -> usize {
-        let pat_contains_non_alpha = self.pattern.chars().any(|c_char| !c_char.is_alphanumeric());
-
-        let first_alpha_char = if pat_contains_non_alpha {
-            match self.match_type {
-                MatchType::Bytes(_) => self
-                    .choice
-                    .bytes()
-                    .enumerate()
-                    .find_map(|(idx, c_char)| {
-                        if c_char.is_ascii_alphabetic() {
-                            return Some(idx);
-                        }
-
-                        None
-                    })
-                    .unwrap_or(start_idx),
-                MatchType::Chars(_) => self
-                    .choice
-                    .char_indices()
-                    .find_map(|(idx, c_char)| {
-                        if c_char.is_alphabetic() {
-                            return Some(idx);
-                        }
-
-                        None
-                    })
-                    .unwrap_or(start_idx),
-            }
-        } else {
-            start_idx
-        };
-
-        first_alpha_char
-    }
-
-    #[inline(always)]
     fn score(&self, matches: &[usize]) -> i64 {
         let start_idx = *matches.first().unwrap_or(&0);
 
         let closeness = self.closeness(matches);
 
-        let closeness_score: i64 = (1_048_576 - (closeness * 32_768)) as i64;
+        let closeness_score = 524_288 - (closeness * 32_768);
 
-        let first_alpha_char = start_idx == self.first_alpha_char(start_idx);
+        let pat_contains_non_alpha = self
+            .pattern
+            .as_bytes()
+            .iter()
+            .any(|c_char| !c_char.is_ascii_alphabetic());
 
-        let start_idx_bonus: i64 = if first_alpha_char { 16_384 } else { 0 };
+        let first_alpha_char = if pat_contains_non_alpha {
+            self.choice
+                .as_bytes()
+                .iter()
+                .enumerate()
+                .find_map(|(idx, c_char)| {
+                    if c_char.is_ascii_alphabetic() {
+                        return Some(idx);
+                    }
 
-        let first_letter_case_bonus: i64 = if self.first_letter_uppercase(start_idx) {
+                    None
+                })
+                .unwrap_or(start_idx)
+        } else {
+            start_idx
+        };
+
+        let start_idx_bonus = if first_alpha_char == 0 {
+            32_768
+        } else if first_alpha_char <= 4 {
+            32_768 / first_alpha_char.pow(2)
+        } else {
+            0
+        };
+
+        let first_letter_case_bonus = if self.first_letter_uppercase(start_idx) {
             16_384
         } else {
             0
         };
 
-        let word_boundary_bonus = (self.word_boundary(matches) * 16_384) as i64;
+        let word_boundary_bonus = self.word_boundary(matches) * 16_384;
 
-        let follows_special_char_bonus = (self.follows_special_char(matches) * 4_096) as i64;
+        let follows_special_char_bonus = self.follows_special_char(matches) * 4_096;
 
-        let len_neg: i64 = (self.match_type.choice_len() * 8) as i64;
+        let len_neg = self.choice_len * 8;
 
-        closeness_score
+        (closeness_score
             + start_idx_bonus
             + first_letter_case_bonus
             + follows_special_char_bonus
             + word_boundary_bonus
             - len_neg
-            - 65_536
+            - 65_536) as i64
     }
 
-    #[inline(always)]
     fn forward_matches(&self) -> Option<Vec<usize>> {
-        self.forward()
+        let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
+
+        self.forward(&mut pattern_indices);
+
+        if pattern_indices.is_empty() {
+            return None;
+        }
+
+        // give a little flex, 2 chars, to when we bump a pattern for being off
+        if pattern_indices.len() + 2 <= self.pattern_len {
+            return None;
+        }
+
+        Some(pattern_indices)
     }
 
-    #[inline(always)]
     fn reverse_matches(&self, matches: &mut Vec<usize>) {
-        self.reverse(matches)
+        let start_idx = *matches.first().unwrap_or(&0);
+        let end_idx = *matches.last().unwrap_or(&0);
+
+        let diff = end_idx - start_idx + 1;
+
+        if diff == 0 {
+            return;
+        }
+
+        let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
+
+        self.reverse(&mut pattern_indices);
+
+        let reverse_start_idx = *pattern_indices.first().unwrap_or(&0);
+        let reverse_end_idx = *pattern_indices.last().unwrap_or(&0);
+        let reverse_diff = reverse_end_idx - reverse_start_idx + 1;
+
+        if reverse_diff < diff {
+            *matches = pattern_indices;
+        }
     }
 
-    #[inline(always)]
+    #[inline]
     fn word_boundary(&self, matches: &[usize]) -> usize {
         matches
             .iter()
@@ -275,28 +254,18 @@ impl<'a> SimpleMatch<'a> {
 
                 let previous = *idx - 1;
 
-                match self.match_type {
-                    MatchType::Bytes(_) => self
-                        .choice
-                        .bytes()
-                        .enumerate()
-                        .nth(previous)
-                        .map(|(idx, b)| {
-                            self.choice.is_char_boundary(idx) && b == b'\t' || b == b' '
-                        })
-                        .unwrap_or(false),
-                    MatchType::Chars(_) => self
-                        .choice
-                        .char_indices()
-                        .nth(previous)
-                        .map(|(idx, b)| self.choice.is_char_boundary(idx) && b == '\t' || b == ' ')
-                        .unwrap_or(false),
-                }
+                self.choice
+                    .as_bytes()
+                    .iter()
+                    .enumerate()
+                    .nth(previous)
+                    .map(|(idx, b)| self.choice.is_char_boundary(idx) && b == &b'\t' || b == &b' ')
+                    .unwrap_or(false)
             })
             .count()
     }
 
-    #[inline(always)]
+    #[inline]
     fn follows_special_char(&self, matches: &[usize]) -> usize {
         matches
             .iter()
@@ -307,182 +276,99 @@ impl<'a> SimpleMatch<'a> {
                     return None;
                 }
 
-                match self.match_type {
-                    MatchType::Bytes(_) => {
-                        self.choice
-                            .bytes()
-                            .enumerate()
-                            .nth(previous)
-                            .map(|(idx, b)| {
-                                self.choice.is_char_boundary(idx) && b == b'\t'
-                                    || b == b'/'
-                                    || b == b':'
-                                    || b == b'-'
-                                    || b == b'_'
-                                    || b == b' '
-                            })
-                    }
-                    MatchType::Chars(_) => {
-                        self.choice.char_indices().nth(previous).map(|(idx, b)| {
-                            self.choice.is_char_boundary(idx) && b == '\t'
-                                || b == '/'
-                                || b == ':'
-                                || b == '-'
-                                || b == '_'
-                                || b == ' '
-                        })
-                    }
-                }
+                self.choice
+                    .as_bytes()
+                    .iter()
+                    .enumerate()
+                    .nth(previous)
+                    .map(|(idx, b)| {
+                        self.choice.is_char_boundary(idx) && b == &b'\t'
+                            || b == &b'/'
+                            || b == &b':'
+                            || b == &b'-'
+                            || b == &b'_'
+                            || b == &b' '
+                    })
             })
             .count()
     }
 
     #[inline]
     fn first_letter_uppercase(&self, start_idx: usize) -> bool {
-        match self.match_type {
-            MatchType::Bytes(_) => {
-                self.pattern.bytes().nth(0).unwrap().is_ascii_uppercase()
-                    && self
-                        .choice
-                        .bytes()
-                        .nth(start_idx)
-                        .unwrap()
-                        .is_ascii_uppercase()
-            }
-            MatchType::Chars(_) => {
-                self.pattern.chars().nth(0).unwrap().is_uppercase()
-                    && self.choice.chars().nth(start_idx).unwrap().is_uppercase()
-            }
-        }
+        self.pattern
+            .as_bytes()
+            .iter()
+            .nth(0)
+            .unwrap()
+            .is_ascii_uppercase()
+            && self
+                .choice
+                .as_bytes()
+                .iter()
+                .nth(start_idx)
+                .unwrap()
+                .is_ascii_uppercase()
     }
 }
 
 pub trait Matching {
-    fn forward(&self) -> Option<Vec<usize>>;
+    fn forward(&self, pattern_indices: &mut Vec<usize>);
     fn reverse(&self, pattern_indices: &mut Vec<usize>);
     fn char_equal(&self, a: &char, b: &char) -> bool;
     fn byte_equal(&self, a: &u8, b: &u8) -> bool;
 }
 
 impl<'a> Matching for SimpleMatch<'a> {
-    #[inline(always)]
-    fn forward(&self) -> Option<Vec<usize>> {
-        match self.match_type {
-            MatchType::Bytes(_) => {
-                let mut choice_iter = self.choice.bytes().enumerate();
+    fn forward(&self, pattern_indices: &mut Vec<usize>) {
+        if self.is_ascii {
+            let mut choice_iter = self.choice.as_bytes().iter().enumerate();
 
-                let mut iter = self.pattern.bytes().filter_map(move |p_char| {
-                    choice_iter.find_map(|(idx, c_char)| {
-                        if self.byte_equal(&p_char, &c_char) {
-                            return Some(idx);
-                        }
+            for p_char in self.pattern.as_bytes().iter() {
+                match choice_iter.find_map(|(idx, c_char)| {
+                    if self.byte_equal(&p_char, &c_char) {
+                        return Some(idx);
+                    }
 
-                        None
-                    })
-                });
-
-                let count = iter.by_ref().count();
-
-                if count == 0 {
-                    return None;
+                    None
+                }) {
+                    Some(char_idx) => pattern_indices.push(char_idx),
+                    None => continue,
                 }
-
-                Some(iter.collect())
             }
-            MatchType::Chars(_) => {
-                let mut choice_iter = self.choice.char_indices();
+        } else {
+            let mut choice_iter = self.choice.char_indices();
 
-                let mut iter = self.pattern.chars().filter_map(move |p_char| {
-                    choice_iter.find_map(|(idx, c_char)| {
-                        if self.char_equal(&p_char, &c_char) {
-                            return Some(idx);
-                        }
+            for p_char in self.pattern.chars() {
+                match choice_iter.find_map(|(idx, c_char)| {
+                    if self.char_equal(&p_char, &c_char) {
+                        return Some(idx);
+                    }
 
-                        None
-                    })
-                });
-
-                let count = iter.by_ref().count();
-
-                if count == 0 {
-                    return None;
+                    None
+                }) {
+                    Some(char_idx) => pattern_indices.push(char_idx),
+                    None => continue,
                 }
-
-                Some(iter.collect())
             }
         }
     }
 
-    #[inline(always)]
     fn reverse(&self, pattern_indices: &mut Vec<usize>) {
-        let start_idx = *pattern_indices.first().unwrap_or(&0);
-        let end_idx = *pattern_indices.last().unwrap_or(&0);
+        if self.case_sensitive {
+            self.choice.rfind(self.pattern).map(|idx| {
+                (idx..idx + self.pattern_len)
+                    .into_iter()
+                    .for_each(|idx| pattern_indices.push(idx))
+            });
+        } else {
+            let c_upper = self.choice.to_uppercase();
+            let p_upper = self.pattern.to_uppercase();
 
-        let diff = end_idx - start_idx + 1;
-
-        if diff == 0 {
-            return;
-        }
-
-        match self.match_type {
-            MatchType::Bytes(_) => {
-                let mut choice_iter = self.choice.bytes().enumerate().rev();
-
-                let mut iter = self
-                    .pattern
-                    .bytes()
-                    .rev()
-                    .filter_map(move |p_char| {
-                        choice_iter.find_map(|(idx, c_char)| {
-                            if self.byte_equal(&p_char, &c_char) {
-                                return Some(idx);
-                            }
-
-                            None
-                        })
-                    })
-                    .rev();
-
-                let first = iter.by_ref().next();
-                let last = iter.by_ref().last();
-
-                let reverse_start_idx = first.unwrap_or(0);
-                let reverse_end_idx = last.unwrap_or(0);
-                let reverse_diff = reverse_end_idx - reverse_start_idx + 1;
-
-                if reverse_diff < diff {
-                    *pattern_indices = iter.collect()
-                }
-            }
-            MatchType::Chars(_) => {
-                let mut choice_iter = self.choice.char_indices().rev();
-
-                let mut iter = self
-                    .pattern
-                    .chars()
-                    .rev()
-                    .filter_map(move |p_char| {
-                        choice_iter.find_map(|(idx, c_char)| {
-                            if self.char_equal(&p_char, &c_char) {
-                                return Some(idx);
-                            }
-
-                            None
-                        })
-                    })
-                    .rev();
-
-                let first = iter.by_ref().next();
-                let last = iter.by_ref().last();
-
-                let reverse_start_idx = first.unwrap_or(0);
-                let reverse_end_idx = last.unwrap_or(0);
-                let reverse_diff = reverse_end_idx - reverse_start_idx + 1;
-
-                if reverse_diff < diff {
-                    *pattern_indices = iter.collect()
-                }
-            }
+            let _ = &c_upper.as_str().rfind(p_upper.as_str()).map(|idx| {
+                (idx..idx + self.pattern_len)
+                    .into_iter()
+                    .for_each(|idx| pattern_indices.push(idx))
+            });
         }
     }
 
@@ -529,6 +415,12 @@ mod tests {
                 .fuzzy_indices("bullsh it shit\n", "shit")
                 .map(|inner| inner.1)
         );
+    }
+
+    #[test]
+    fn test_simple_non_consecutive() {
+        let matcher = SimpleMatcher::default();
+        assert_eq!(None, matcher.fuzzy_indices("bsuhlilt\n", "shit"));
     }
 }
 
