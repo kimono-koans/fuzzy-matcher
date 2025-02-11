@@ -147,20 +147,14 @@ impl<'a> SimpleMatch<'a> {
         })
     }
 
-    fn score(&self, matches: &[usize]) -> i64 {
-        let start_idx = *matches.first().unwrap_or(&0);
-
-        let closeness = self.closeness(matches);
-
-        let closeness_score = 524_288 - (closeness * 32_768);
-
+    fn first_alpha_char(&self, start_idx: usize) -> usize {
         let pat_contains_non_alpha = self
             .pattern
             .as_bytes()
             .iter()
             .any(|c_char| !c_char.is_ascii_alphabetic());
 
-        let first_alpha_char = if pat_contains_non_alpha {
+        if pat_contains_non_alpha {
             self.choice
                 .as_bytes()
                 .iter()
@@ -175,15 +169,15 @@ impl<'a> SimpleMatch<'a> {
                 .unwrap_or(start_idx)
         } else {
             start_idx
-        };
+        }
+    }
 
-        let start_idx_bonus = if first_alpha_char == 0 {
-            32_768
-        } else if first_alpha_char <= 4 {
-            32_768 / first_alpha_char.pow(2)
-        } else {
-            0
-        };
+    fn score(&self, matches: &[usize]) -> i64 {
+        let start_idx = *matches.first().unwrap_or(&0);
+
+        let closeness_score = 524_288 - (self.closeness(matches) * 32_768);
+
+        let start_idx_bonus = 32_768 - (self.first_alpha_char(start_idx) * 2048);
 
         let first_letter_case_bonus = if self.first_letter_uppercase(start_idx) {
             16_384
