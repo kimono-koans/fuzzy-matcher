@@ -150,7 +150,7 @@ impl<'a> SimpleMatch<'a> {
     fn score(&self, matches: &[usize]) -> i64 {
         let start_idx = matches.first().unwrap_or(&0);
 
-        let closeness_score = 524_288 - (self.closeness(matches) * 32_768);
+        let closeness_score = 1_048_576 - (self.closeness(matches) * 32_768);
 
         let start_idx_bonus = if let Some((first_alpha_idx, _)) = self
             .choice
@@ -231,11 +231,10 @@ impl<'a> SimpleMatch<'a> {
                 let previous = *idx - 1;
 
                 self.choice
-                    .as_bytes()
-                    .iter()
+                    .bytes()
                     .enumerate()
                     .nth(previous)
-                    .map(|(idx, b)| self.choice.is_char_boundary(idx) && b == &b'\t' || b == &b' ')
+                    .map(|(idx, b)| self.choice.is_char_boundary(idx) && b == b'\t' || b == b' ')
                     .unwrap_or(false)
             })
             .count()
@@ -253,17 +252,16 @@ impl<'a> SimpleMatch<'a> {
                 }
 
                 self.choice
-                    .as_bytes()
-                    .iter()
+                    .bytes()
                     .enumerate()
                     .nth(previous)
                     .map(|(idx, b)| {
-                        self.choice.is_char_boundary(idx) && b == &b'\t'
-                            || b == &b'/'
-                            || b == &b':'
-                            || b == &b'-'
-                            || b == &b'_'
-                            || b == &b' '
+                        self.choice.is_char_boundary(idx) && b == b'\t'
+                            || b == b'/'
+                            || b == b':'
+                            || b == b'-'
+                            || b == b'_'
+                            || b == b' '
                     })
             })
             .count()
@@ -271,16 +269,10 @@ impl<'a> SimpleMatch<'a> {
 
     #[inline]
     fn first_letter_uppercase(&self, start_idx: &usize) -> bool {
-        self.pattern
-            .as_bytes()
-            .iter()
-            .nth(0)
-            .unwrap()
-            .is_ascii_uppercase()
+        self.pattern.bytes().nth(0).unwrap().is_ascii_uppercase()
             && self
                 .choice
-                .as_bytes()
-                .iter()
+                .bytes()
                 .nth(*start_idx)
                 .unwrap()
                 .is_ascii_uppercase()
