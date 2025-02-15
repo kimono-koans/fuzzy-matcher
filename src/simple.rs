@@ -225,7 +225,7 @@ impl<'a> SimpleMatch<'a> {
             let reverse_closeness = self.closeness(&pattern_indices);
 
             if reverse_closeness < forward_closeness {
-                *matches = pattern_indices.to_vec();
+                *matches = pattern_indices.clone();
             }
         })
     }
