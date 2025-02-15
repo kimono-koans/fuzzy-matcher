@@ -216,7 +216,6 @@ impl<'a> SimpleMatch<'a> {
 
     fn reverse_matches(&self, matches: &mut Vec<usize>, forward_closeness: usize) {
         REVERSE.with_borrow_mut(|mut pattern_indices| {
-            pattern_indices.shrink_to(self.pattern_len);
             pattern_indices.clear();
 
             self.reverse(&mut pattern_indices);
