@@ -1,6 +1,6 @@
 [package]
 name = "fuzzy-muff"
-version = "0.4.6"
+version = "0.4.7"
 authors = [
     "Jinzhou Zhang <lotabout@gmail.com>",
     "Robert Swinford <robert.swinford <...at...> gmail.com>",

@@ -139,6 +139,7 @@ impl<'a> SimpleMatch<'a> {
         None
     }
 
+    #[inline]
     fn closeness(&self, matches: &[usize]) -> usize {
         let matches_len = matches.len();
 
@@ -149,6 +150,7 @@ impl<'a> SimpleMatch<'a> {
             + self.pattern_len.abs_diff(end_idx.abs_diff(start_idx) + 1)
     }
 
+    #[inline]
     fn none_consecutive(matches: &[usize]) -> bool {
         matches.iter().enumerate().all(|(idx, val)| {
             let next_proposed = Some(val + &1);
@@ -158,6 +160,7 @@ impl<'a> SimpleMatch<'a> {
         })
     }
 
+    #[inline]
     fn score(&self, matches: &[usize]) -> i64 {
         let start_idx = matches.first().unwrap_or(&0);
 
@@ -200,6 +203,7 @@ impl<'a> SimpleMatch<'a> {
             - 131_072) as i64
     }
 
+    #[inline]
     fn forward_matches(&self, pattern_indices: &mut Vec<usize>) -> Option<()> {
         self.forward(pattern_indices);
 
@@ -214,6 +218,7 @@ impl<'a> SimpleMatch<'a> {
         Some(())
     }
 
+    #[inline]
     fn reverse_matches(&self, matches: &mut Vec<usize>, forward_closeness: usize) {
         let reverse_closeness = REVERSE.with_borrow_mut(|mut pattern_indices| {
             pattern_indices.clear();
@@ -296,6 +301,7 @@ pub trait Matching {
 }
 
 impl<'a> Matching for SimpleMatch<'a> {
+    #[inline]
     fn forward(&self, pattern_indices: &mut Vec<usize>) {
         if self.is_ascii {
             let mut choice_iter = self.choice.bytes().enumerate();
@@ -330,6 +336,7 @@ impl<'a> Matching for SimpleMatch<'a> {
         }
     }
 
+    #[inline]
     fn reverse(&self, pattern_indices: &mut Vec<usize>) {
         if self.is_ascii {
             let mut choice_iter = self.choice.bytes().enumerate().rev();
