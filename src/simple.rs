@@ -216,7 +216,7 @@ impl<'a> SimpleMatch<'a> {
 
     fn reverse_matches(&self, matches: &mut Vec<usize>, forward_closeness: usize) {
         REVERSE.with_borrow_mut(|mut pattern_indices| {
-            pattern_indices.reserve_exact(self.pattern_len);
+            pattern_indices.shrink_to(self.pattern_len);
             pattern_indices.clear();
 
             self.reverse(&mut pattern_indices);
@@ -224,7 +224,7 @@ impl<'a> SimpleMatch<'a> {
             let reverse_closeness = self.closeness(&pattern_indices);
 
             if reverse_closeness < forward_closeness {
-                *matches = pattern_indices.clone();
+                *matches = REVERSE.replace(Vec::with_capacity(self.pattern_len));
             }
         })
     }
