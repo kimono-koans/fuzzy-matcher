@@ -114,25 +114,29 @@ impl<'a> SimpleMatch<'a> {
             return None;
         }
 
-        let mut matches = self.forward_matches()?;
+        FORWARD.with_borrow_mut(|mut pattern_indices| {
+            pattern_indices.clear();
 
-        let forward_closeness = self.closeness(&matches);
+            self.forward_matches(pattern_indices)?;
 
-        if forward_closeness != 0 {
-            self.reverse_matches(&mut matches, forward_closeness);
-        }
+            let forward_closeness = self.closeness(&pattern_indices);
 
-        if self.pattern_len > 3 && Self::none_consecutive(&matches) {
-            return None;
-        }
+            if forward_closeness != 0 {
+                self.reverse_matches(&mut pattern_indices, forward_closeness)
+            }
 
-        let score = self.score(&matches);
+            if self.pattern_len > 3 && Self::none_consecutive(&pattern_indices) {
+                return None;
+            }
 
-        if score >= BASELINE {
-            return Some((score, matches));
-        }
+            let score = self.score(&pattern_indices);
 
-        None
+            if score >= BASELINE {
+                return Some((score, FORWARD.replace(Vec::with_capacity(self.pattern_len))));
+            }
+
+            None
+        })
     }
 
     fn closeness(&self, matches: &[usize]) -> usize {
@@ -196,23 +200,18 @@ impl<'a> SimpleMatch<'a> {
             - 131_072) as i64
     }
 
-    fn forward_matches(&self) -> Option<Vec<usize>> {
-        FORWARD.with_borrow_mut(|mut pattern_indices| {
-            pattern_indices.reserve_exact(self.pattern_len);
-            pattern_indices.clear();
+    fn forward_matches(&self, pattern_indices: &mut Vec<usize>) -> Option<()> {
+        self.forward(pattern_indices);
 
-            self.forward(&mut pattern_indices);
+        if pattern_indices.is_empty() {
+            return None;
+        }
 
-            if pattern_indices.is_empty() {
-                return None;
-            }
+        if pattern_indices.len() + 2 <= self.pattern_len {
+            return None;
+        }
 
-            if pattern_indices.len() + 2 <= self.pattern_len {
-                return None;
-            }
-
-            Some(pattern_indices.clone())
-        })
+        Some(())
     }
 
     fn reverse_matches(&self, matches: &mut Vec<usize>, forward_closeness: usize) {
