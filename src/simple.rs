@@ -1,8 +1,15 @@
+use std::cell::RefCell;
+
 use crate::FuzzyMatcher;
 use crate::IndexType;
 use crate::ScoreType;
 
 const BASELINE: i64 = 0i64;
+
+thread_local! {
+    static FORWARD: RefCell<Vec<usize>> = RefCell::new(Vec::new());
+    static REVERSE: RefCell<Vec<usize>> = RefCell::new(Vec::new());
+}
 
 impl FuzzyMatcher for SimpleMatcher {
     fn fuzzy_indices(&self, choice: &str, pattern: &str) -> Option<(ScoreType, Vec<IndexType>)> {
@@ -178,7 +185,7 @@ impl<'a> SimpleMatch<'a> {
 
         let follows_special_char_bonus = self.follows_special_char(matches) * 4_096;
 
-        let len_neg = self.choice_len * 128;
+        let len_neg = self.choice_len * 16;
 
         (closeness_score
             + start_idx_bonus
@@ -190,33 +197,39 @@ impl<'a> SimpleMatch<'a> {
     }
 
     fn forward_matches(&self) -> Option<Vec<usize>> {
-        let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
+        FORWARD.with_borrow_mut(|mut pattern_indices| {
+            pattern_indices.reserve_exact(self.pattern_len);
+            pattern_indices.clear();
 
-        self.forward(&mut pattern_indices);
+            self.forward(&mut pattern_indices);
 
-        if pattern_indices.is_empty() {
-            return None;
-        }
+            if pattern_indices.is_empty() {
+                return None;
+            }
 
-        if pattern_indices.len() + 2 <= self.pattern_len {
-            return None;
-        }
+            if pattern_indices.len() + 2 <= self.pattern_len {
+                return None;
+            }
 
-        Some(pattern_indices)
+            Some(pattern_indices.clone())
+        })
     }
 
     fn reverse_matches(&self, matches: &mut Vec<usize>, forward_closeness: usize) {
-        let mut pattern_indices: Vec<usize> = Vec::with_capacity(self.pattern_len);
+        REVERSE.with_borrow_mut(|mut pattern_indices| {
+            pattern_indices.reserve_exact(self.pattern_len);
+            pattern_indices.clear();
 
-        self.reverse(&mut pattern_indices);
+            self.reverse(&mut pattern_indices);
 
-        pattern_indices.reverse();
+            pattern_indices.reverse();
 
-        let reverse_closeness = self.closeness(&pattern_indices);
+            let reverse_closeness = self.closeness(&pattern_indices);
 
-        if reverse_closeness < forward_closeness {
-            *matches = pattern_indices;
-        }
+            if reverse_closeness < forward_closeness {
+                *matches = pattern_indices.to_vec();
+            }
+        })
     }
 
     #[inline]
@@ -406,39 +419,3 @@ mod tests {
         assert_eq!(None, matcher.fuzzy_indices("bsuhlilt\n", "shit"));
     }
 }
-
-// fn reverse(&self, pattern_indices: &mut Vec<usize>) {
-//     let mut choice_iter = self.inner.choice.char_indices().rev();
-
-//     for p_char in self.inner.pattern.chars().rev() {
-//         match choice_iter.find_map(|(idx, c_char)| {3
-//             if self.char_equal(p_char, c_char) {
-//                 return Some(idx);
-//             }
-
-//             None
-//         }) {
-//             Some(char_idx) => pattern_indices.push(char_idx),
-//             None => return,
-//         }
-//     }
-//     pattern_indices.reverse()
-// }
-
-// fn reverse(&self, pattern_indices: &mut Vec<usize>) {
-//     let mut choice_iter = self.inner.choice.bytes().enumerate().rev();
-
-//     for p_char in self.inner.pattern.bytes().rev() {
-//         match choice_iter.find_map(|(idx, c_char)| {
-//             if self.byte_equal(p_char, c_char) && self.inner.choice.is_char_boundary(idx) {
-//                 return Some(idx);
-//             }
-
-//             None
-//         }) {
-//             Some(char_idx) => pattern_indices.push(char_idx),
-//             None => return,
-//         }
-//     }
-//     pattern_indices.reverse()
-// }
