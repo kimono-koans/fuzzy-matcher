@@ -114,7 +114,7 @@ impl<'a> SimpleMatch<'a> {
             return None;
         }
 
-        FORWARD.with_borrow_mut(|mut pattern_indices| {
+        let score = FORWARD.with_borrow_mut(|mut pattern_indices| {
             pattern_indices.clear();
 
             self.forward_matches(pattern_indices)?;
@@ -129,14 +129,14 @@ impl<'a> SimpleMatch<'a> {
                 return None;
             }
 
-            let score = self.score(&pattern_indices);
+            Some(self.score(&pattern_indices))
+        })?;
 
-            if score >= BASELINE {
-                return Some((score, FORWARD.replace(Vec::with_capacity(self.pattern_len))));
-            }
+        if score >= BASELINE {
+            return Some((score, FORWARD.replace(Vec::with_capacity(self.pattern_len))));
+        }
 
-            None
-        })
+        None
     }
 
     fn closeness(&self, matches: &[usize]) -> usize {
@@ -215,17 +215,17 @@ impl<'a> SimpleMatch<'a> {
     }
 
     fn reverse_matches(&self, matches: &mut Vec<usize>, forward_closeness: usize) {
-        REVERSE.with_borrow_mut(|mut pattern_indices| {
+        let reverse_closeness = REVERSE.with_borrow_mut(|mut pattern_indices| {
             pattern_indices.clear();
 
             self.reverse(&mut pattern_indices);
 
-            let reverse_closeness = self.closeness(&pattern_indices);
+            self.closeness(&pattern_indices)
+        });
 
-            if reverse_closeness < forward_closeness {
-                *matches = REVERSE.replace(Vec::with_capacity(self.pattern_len));
-            }
-        })
+        if reverse_closeness < forward_closeness {
+            *matches = REVERSE.replace(Vec::with_capacity(self.pattern_len));
+        }
     }
 
     #[inline]
