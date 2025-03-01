@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::ops::Mul;
 
 use crate::FuzzyMatcher;
 use crate::IndexType;
@@ -146,7 +147,7 @@ impl<'a> SimpleMatch<'a> {
         let start_idx = *matches.first().unwrap_or(&0);
         let end_idx = *matches.last().unwrap_or(&0);
 
-        self.pattern_len.abs_diff(matches_len)
+        self.pattern_len.abs_diff(matches_len).mul(4)
             + self.pattern_len.abs_diff(end_idx.abs_diff(start_idx) + 1)
     }
 
